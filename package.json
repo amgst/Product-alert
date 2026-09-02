@@ -3,7 +3,8 @@
   "private": true,
   "type": "module",
   "scripts": {
-    "build": "react-router build",
+    "build": "prisma generate && react-router build",
+    "postinstall": "prisma generate",
     "dev": "shopify app dev",
     "info": "shopify app info",
     "start": "shopify app dev",
