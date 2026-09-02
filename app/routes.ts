@@ -10,6 +10,7 @@ export default [
     route("products", "routes/app.products.tsx"),
     route("alerts", "routes/app.alerts.tsx"),
     route("settings", "routes/app.settings.tsx"),
+    route("billing/upgrade", "routes/app.billing.upgrade.tsx"),
   ]),
   index("routes/_index.tsx"),
 ] satisfies RouteConfig;
