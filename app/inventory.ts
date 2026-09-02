@@ -73,7 +73,7 @@ export async function ensureDefaultRule(shop: string) {
     data: {
       shop,
       name: "Store-wide low stock",
-      recipients: "owner@example.com",
+      recipients: "",
       defaultMinimum: 15,
     },
   });

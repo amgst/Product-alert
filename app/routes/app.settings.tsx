@@ -1,18 +1,33 @@
 import type { ActionFunctionArgs, LoaderFunctionArgs } from "react-router";
-import { useFetcher } from "react-router";
+import { useFetcher, useLoaderData } from "react-router";
 import { PageHeader } from "../components";
 import { authenticate } from "../shopify";
+import prisma from "../db";
+import { ensureDefaultRule } from "../inventory";
 import { sendEmailMessage, sendWhatsAppMessage } from "../notifications.server";
 
 export const loader = async ({ request }: LoaderFunctionArgs) => {
-  await authenticate.admin(request);
-  return null;
+  const { session } = await authenticate.admin(request);
+  const rule = await ensureDefaultRule(session.shop);
+  return { rule };
 };
 
 export const action = async ({ request }: ActionFunctionArgs) => {
-  await authenticate.admin(request);
+  const { session } = await authenticate.admin(request);
   const formData = await request.formData();
   const intent = String(formData.get("intent") || "");
+
+  if (intent === "save-recipients") {
+    const rule = await ensureDefaultRule(session.shop);
+    await prisma.alertRule.update({
+      where: { id: rule.id },
+      data: {
+        recipients: String(formData.get("recipients") || ""),
+        whatsappRecipients: String(formData.get("whatsappRecipients") || "") || null,
+      },
+    });
+    return { intent, ok: true };
+  }
 
   if (intent === "test-email") {
     const to = String(formData.get("testEmail") || "").trim();
@@ -84,10 +99,15 @@ function TestWhatsAppForm() {
 }
 
 export default function Settings() {
+  const { rule } = useLoaderData<typeof loader>();
+  const saveFetcher = useFetcher<{ ok: boolean }>();
+
   return (
     <>
       <PageHeader eyebrow="App configuration" title="Settings">
-        <button className="primary" type="submit" form="settings-form">Save settings</button>
+        <button className="primary" type="submit" form="settings-form" disabled={saveFetcher.state !== "idle"}>
+          {saveFetcher.state !== "idle" ? "Saving…" : "Save settings"}
+        </button>
       </PageHeader>
 
       <section className="settings-grid">
@@ -95,16 +115,21 @@ export default function Settings() {
           <div className="panel-header compact">
             <div>
               <h2>Notification channels</h2>
-              <p>Choose where alerts should be delivered.</p>
+              <p>Where should low-stock alerts be delivered for this store?</p>
             </div>
           </div>
-          <form className="rule-form" id="settings-form">
-            <label>Email sender name<input type="text" defaultValue="MinStock Notifier" /></label>
-            <label>Default recipients<input type="text" defaultValue="ops@example.com, buyer@example.com" /></label>
-            <label className="check"><input type="checkbox" defaultChecked /> Send one daily low-stock summary</label>
-            <label className="check"><input type="checkbox" /> Send recovery notifications</label>
-            <label className="check"><input type="checkbox" /> Connect Slack for urgent alerts</label>
-          </form>
+          <saveFetcher.Form className="rule-form" id="settings-form" method="post">
+            <input type="hidden" name="intent" value="save-recipients" />
+            <label>
+              Email recipients
+              <input name="recipients" type="text" defaultValue={rule.recipients} placeholder="you@example.com, staff@example.com" />
+            </label>
+            <label>
+              WhatsApp recipients
+              <input name="whatsappRecipients" type="text" defaultValue={rule.whatsappRecipients ?? ""} placeholder="+14155551234, +14155555678" />
+            </label>
+            {saveFetcher.data?.ok && <p style={{ color: "var(--ok)" }}>Saved.</p>}
+          </saveFetcher.Form>
         </div>
 
         <div className="panel">
