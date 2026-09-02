@@ -1,5 +1,5 @@
 import type { ActionFunctionArgs, LoaderFunctionArgs } from "react-router";
-import { Link, useFetcher, useLoaderData } from "react-router";
+import { Link, useFetcher, useLoaderData, useSearchParams } from "react-router";
 import { PageHeader } from "../components";
 import { authenticate } from "../shopify";
 import prisma from "../db";
@@ -122,6 +122,8 @@ function TestWhatsAppForm({ hasWhatsApp }: { hasWhatsApp: boolean }) {
 export default function Settings() {
   const { rule, hasWhatsApp } = useLoaderData<typeof loader>();
   const saveFetcher = useFetcher<{ ok: boolean }>();
+  const [searchParams] = useSearchParams();
+  const billingError = searchParams.get("billingError");
 
   return (
     <>
@@ -131,6 +133,11 @@ export default function Settings() {
         </button>
       </PageHeader>
 
+      {billingError && (
+        <div className="panel" style={{ borderColor: "var(--danger)" }}>
+          <p style={{ color: "var(--danger)" }}>{billingError}</p>
+        </div>
+      )}
       <section className="settings-grid">
         <div className="panel">
           <div className="panel-header compact">
