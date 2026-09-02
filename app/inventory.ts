@@ -38,9 +38,9 @@ export async function loadInventoryRows(admin: { graphql: (query: string) => Pro
     }
   `);
   const payload = (await response.json()) as { data: { products: { nodes: ShopifyProduct[] } } };
-  const thresholds = await prisma.productThreshold.findMany({ where: { shop } });
+  const thresholds: ProductThreshold[] = await prisma.productThreshold.findMany({ where: { shop } });
   const thresholdMap = new Map(
-    thresholds.map((item: ProductThreshold) => [`${item.productId}:${item.variantId ?? ""}`, item]),
+    thresholds.map((item) => [`${item.productId}:${item.variantId ?? ""}`, item] as const),
   );
 
   return payload.data.products.nodes.flatMap((product) =>
