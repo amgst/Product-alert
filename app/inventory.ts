@@ -1,18 +1,6 @@
-import prisma from "./db.server";
+import prisma from "./db";
 import type { ProductThreshold } from "@prisma/client";
-
-export type ProductRow = {
-  productId: string;
-  variantId: string;
-  title: string;
-  variantTitle: string;
-  sku: string;
-  available: number;
-  committed: number;
-  minimumStock: number;
-  reorderQuantity: number;
-  watchEnabled: boolean;
-};
+import type { ProductRow } from "./inventory.shared";
 
 type ShopifyVariant = {
   id: string;
@@ -74,14 +62,6 @@ export async function loadInventoryRows(admin: { graphql: (query: string) => Pro
       } satisfies ProductRow;
     }),
   );
-}
-
-export function getStatus(row: ProductRow) {
-  if (!row.watchEnabled) return { label: "Muted", tone: "muted" };
-  if (row.available <= 0) return { label: "Out", tone: "danger" };
-  if (row.available <= row.minimumStock) return { label: "Low", tone: "danger" };
-  if (row.available <= row.minimumStock + 5) return { label: "Near", tone: "warning" };
-  return { label: "Healthy", tone: "ok" };
 }
 
 export async function ensureDefaultRule(shop: string) {

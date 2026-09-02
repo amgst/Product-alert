@@ -1,5 +1,5 @@
-import type { ProductRow } from "./inventory.server";
-import { getStatus } from "./inventory.server";
+import type { ProductRow } from "./inventory.shared";
+import { getStatus } from "./inventory.shared";
 
 export function PageHeader({
   eyebrow,

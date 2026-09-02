@@ -1,9 +1,9 @@
 import type { ActionFunctionArgs, LoaderFunctionArgs } from "react-router";
 import { redirect, useLoaderData } from "react-router";
 import { PageHeader, ProductTable } from "../components";
-import { loadInventoryRows } from "../inventory.server";
-import prisma from "../db.server";
-import { authenticate } from "../shopify.server";
+import { authenticate } from "../shopify";
+import prisma from "../db";
+import { loadInventoryRows } from "../inventory";
 
 export const loader = async ({ request }: LoaderFunctionArgs) => {
   const { admin, session } = await authenticate.admin(request);

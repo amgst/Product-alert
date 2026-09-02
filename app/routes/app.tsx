@@ -1,12 +1,4 @@
-import type { HeadersFunction, LoaderFunctionArgs } from "react-router";
 import { Link, Outlet, useLocation } from "react-router";
-import { boundary } from "@shopify/shopify-app-react-router/server";
-import { authenticate } from "../shopify.server";
-
-export const loader = async ({ request }: LoaderFunctionArgs) => {
-  await authenticate.admin(request);
-  return null;
-};
 
 const navItems = [
   { label: "Dashboard", to: "/app", icon: "grid" },
@@ -78,5 +70,3 @@ export default function AppShell() {
     </div>
   );
 }
-
-export const headers: HeadersFunction = (headersArgs) => boundary.headers(headersArgs);

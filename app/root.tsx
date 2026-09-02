@@ -8,9 +8,7 @@ import {
   useRouteError,
 } from "react-router";
 import type { LinksFunction } from "react-router";
-import { boundary } from "@shopify/shopify-app-react-router/server";
 import { AppProvider } from "@shopify/shopify-app-react-router/react";
-import { addDocumentResponseHeaders } from "./shopify.server";
 import stylesheet from "./styles/app.css?url";
 
 export const links: LinksFunction = () => [{ rel: "stylesheet", href: stylesheet }];
@@ -42,7 +40,25 @@ export default function App() {
 }
 
 export function ErrorBoundary() {
-  return boundary.error(useRouteError());
-}
+  const error = useRouteError();
+  const message = error instanceof Error ? error.message : "Something went wrong.";
 
-export const headers = boundary.headers;
+  return (
+    <html lang="en">
+      <head>
+        <title>MinStock Notifier error</title>
+        <Meta />
+        <Links />
+      </head>
+      <body>
+        <main className="main">
+          <section className="panel">
+            <h1>Unable to load app</h1>
+            <p>{message}</p>
+          </section>
+        </main>
+        <Scripts />
+      </body>
+    </html>
+  );
+}

@@ -1,9 +1,10 @@
 import type { LoaderFunctionArgs } from "react-router";
 import { useLoaderData } from "react-router";
 import { PageHeader, ProductTable } from "../components";
-import { ensureDefaultRule, getStatus, loadInventoryRows } from "../inventory.server";
-import prisma from "../db.server";
-import { authenticate } from "../shopify.server";
+import { getStatus } from "../inventory.shared";
+import { authenticate } from "../shopify";
+import prisma from "../db";
+import { ensureDefaultRule, loadInventoryRows } from "../inventory";
 import type { NotificationEvent } from "@prisma/client";
 
 export const loader = async ({ request }: LoaderFunctionArgs) => {

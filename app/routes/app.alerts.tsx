@@ -1,9 +1,9 @@
 import type { ActionFunctionArgs, LoaderFunctionArgs } from "react-router";
 import { redirect, useLoaderData } from "react-router";
 import { PageHeader } from "../components";
-import { ensureDefaultRule } from "../inventory.server";
-import prisma from "../db.server";
-import { authenticate } from "../shopify.server";
+import { authenticate } from "../shopify";
+import prisma from "../db";
+import { ensureDefaultRule } from "../inventory";
 import type { AlertRule } from "@prisma/client";
 
 export const loader = async ({ request }: LoaderFunctionArgs) => {

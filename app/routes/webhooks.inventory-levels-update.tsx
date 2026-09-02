@@ -1,6 +1,6 @@
 import type { ActionFunctionArgs } from "react-router";
-import prisma from "../db.server";
-import { authenticate } from "../shopify.server";
+import prisma from "../db";
+import { authenticate } from "../shopify";
 
 export const action = async ({ request }: ActionFunctionArgs) => {
   const { shop, payload } = await authenticate.webhook(request);
