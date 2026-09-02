@@ -1,5 +1,5 @@
 import type { LoaderFunctionArgs } from "react-router";
-import { useLoaderData } from "react-router";
+import { Link, useLoaderData } from "react-router";
 import { PageHeader, ProductTable } from "../components";
 import { getStatus } from "../inventory.shared";
 import { authenticate } from "../shopify";
@@ -36,8 +36,8 @@ export default function Dashboard() {
   return (
     <>
       <PageHeader eyebrow="Inventory monitoring" title="Low stock alerts">
-        <a className="ghost" href="/app/alerts">Add rule</a>
-        <a className="primary" href="/app/products">Edit thresholds</a>
+        <Link className="ghost" to="/app/alerts">Add rule</Link>
+        <Link className="primary" to="/app/products">Edit thresholds</Link>
       </PageHeader>
 
       <section className="summary-grid" aria-label="Inventory summary">

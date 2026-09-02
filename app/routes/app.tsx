@@ -1,4 +1,4 @@
-import { Link, Outlet, useLocation } from "react-router";
+import { Link, Outlet, useLocation, useNavigation } from "react-router";
 
 const navItems = [
   { label: "Dashboard", to: "/app", icon: "grid" },
@@ -24,9 +24,12 @@ function Icon({ name }: { name: string }) {
 
 export default function AppShell() {
   const location = useLocation();
+  const navigation = useNavigation();
+  const isLoading = navigation.state !== "idle";
 
   return (
     <div className="shell">
+      <div className={`route-progress ${isLoading ? "active" : ""}`} aria-hidden="true" />
       <aside className="sidebar" aria-label="App navigation">
         <div className="brand">
           <div className="brand-mark" aria-hidden="true">
@@ -65,6 +68,12 @@ export default function AppShell() {
       </aside>
 
       <main className="main">
+        {isLoading && (
+          <div className="route-loading-overlay" role="status" aria-live="polite">
+            <span className="spinner" />
+            <span>Loading…</span>
+          </div>
+        )}
         <Outlet />
       </main>
     </div>
