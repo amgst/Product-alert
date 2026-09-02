@@ -1,5 +1,6 @@
 import { Resend } from "resend";
 import prisma from "./db";
+import { hasWhatsAppAccess } from "./billing.server";
 import type { AlertRule } from "@prisma/client";
 
 const resend = process.env.RESEND_API_KEY ? new Resend(process.env.RESEND_API_KEY) : null;
@@ -108,9 +109,11 @@ export async function notifyLowStock(params: {
     console.warn(`RESEND_API_KEY not set — skipping email for shop ${shop}`);
   }
 
-  for (const to of whatsappRecipients) {
-    const { ok } = await sendWhatsAppMessage(to, `${title}\n${message}\nShop: ${shop}`);
-    if (ok) notified.push(`whatsapp:${to}`);
+  if (whatsappRecipients.length > 0 && (await hasWhatsAppAccess(shop))) {
+    for (const to of whatsappRecipients) {
+      const { ok } = await sendWhatsAppMessage(to, `${title}\n${message}\nShop: ${shop}`);
+      if (ok) notified.push(`whatsapp:${to}`);
+    }
   }
 
   if (notified.length > 0) {

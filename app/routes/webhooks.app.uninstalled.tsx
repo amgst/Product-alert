@@ -12,6 +12,7 @@ export const action = async ({ request }: ActionFunctionArgs) => {
     await prisma.alertRule.deleteMany({ where: { shop } });
     await prisma.productThreshold.deleteMany({ where: { shop } });
     await prisma.notificationEvent.deleteMany({ where: { shop } });
+    await prisma.shop.deleteMany({ where: { shop } });
   }
 
   return new Response();

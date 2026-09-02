@@ -1,15 +1,18 @@
 import type { ActionFunctionArgs, LoaderFunctionArgs } from "react-router";
-import { Form, redirect, useLoaderData } from "react-router";
+import { Form, Link, redirect, useActionData, useLoaderData } from "react-router";
 import { PageHeader } from "../components";
 import { authenticate } from "../shopify";
 import prisma from "../db";
 import { ensureDefaultRule } from "../inventory";
+import { syncPlan } from "../billing.server";
 import type { AlertRule } from "@prisma/client";
 
 export const loader = async ({ request }: LoaderFunctionArgs) => {
-  const { session } = await authenticate.admin(request);
+  const { session, billing } = await authenticate.admin(request);
   await ensureDefaultRule(session.shop);
+  const hasWhatsApp = await syncPlan(session.shop, billing);
   return {
+    hasWhatsApp,
     rules: await prisma.alertRule.findMany({
       where: { shop: session.shop },
       orderBy: { createdAt: "asc" },
@@ -18,8 +21,16 @@ export const loader = async ({ request }: LoaderFunctionArgs) => {
 };
 
 export const action = async ({ request }: ActionFunctionArgs) => {
-  const { session } = await authenticate.admin(request);
+  const { session, billing } = await authenticate.admin(request);
   const formData = await request.formData();
+  const whatsappRecipients = String(formData.get("whatsappRecipients") || "").trim();
+
+  if (whatsappRecipients) {
+    const hasWhatsApp = await syncPlan(session.shop, billing);
+    if (!hasWhatsApp) {
+      return { ok: false, error: "WhatsApp alerts require the Pro plan." };
+    }
+  }
 
   await prisma.alertRule.create({
     data: {
@@ -28,7 +39,7 @@ export const action = async ({ request }: ActionFunctionArgs) => {
       triggerType: String(formData.get("triggerType") || "at_or_below_minimum"),
       checkFrequency: String(formData.get("checkFrequency") || "hourly"),
       recipients: String(formData.get("recipients") || ""),
-      whatsappRecipients: String(formData.get("whatsappRecipients") || "") || null,
+      whatsappRecipients: whatsappRecipients || null,
       defaultMinimum: Number(formData.get("defaultMinimum") || 15),
       active: true,
     },
@@ -38,7 +49,8 @@ export const action = async ({ request }: ActionFunctionArgs) => {
 };
 
 export default function Alerts() {
-  const { rules } = useLoaderData<typeof loader>();
+  const { rules, hasWhatsApp } = useLoaderData<typeof loader>();
+  const actionData = useActionData<typeof action>();
 
   return (
     <>
@@ -78,7 +90,23 @@ export default function Alerts() {
             <label>Frequency<select name="checkFrequency" defaultValue="hourly"><option value="hourly">Every hour</option><option value="three_hours">Every 3 hours</option><option value="daily">Daily summary</option></select></label>
             <label>Default minimum<input name="defaultMinimum" type="number" min="0" defaultValue="15" /></label>
             <label>Recipients<input name="recipients" type="text" defaultValue="ops@example.com" /></label>
-            <label>WhatsApp recipients<input name="whatsappRecipients" type="text" placeholder="+14155551234, +14155555678" /></label>
+            <label>
+              WhatsApp recipients {!hasWhatsApp && <span className="badge">Pro plan</span>}
+              <input
+                name="whatsappRecipients"
+                type="text"
+                placeholder="+14155551234, +14155555678"
+                disabled={!hasWhatsApp}
+              />
+            </label>
+            {!hasWhatsApp && (
+              <p style={{ color: "var(--muted)" }}>
+                <Link to="/app/billing/upgrade">Upgrade to Pro</Link> to enable WhatsApp alerts.
+              </p>
+            )}
+            {actionData && !actionData.ok && (
+              <p style={{ color: "var(--danger)" }}>{actionData.error}</p>
+            )}
             <button className="primary full" type="submit">Create rule</button>
           </Form>
         </aside>

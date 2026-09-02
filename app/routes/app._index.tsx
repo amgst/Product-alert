@@ -72,7 +72,7 @@ export default function Dashboard() {
               <legend>Send notifications to</legend>
               <label className="check"><input type="checkbox" defaultChecked /> Store owner email</label>
               <label className="check"><input type="checkbox" defaultChecked /> Staff emails</label>
-              <label className="check"><input type="checkbox" /> Slack channel</label>
+              <label className="check disabled"><input type="checkbox" disabled /> Slack channel <span className="badge">Coming soon</span></label>
             </fieldset>
           </div>
         </aside>

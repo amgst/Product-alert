@@ -1,29 +1,37 @@
 import type { ActionFunctionArgs, LoaderFunctionArgs } from "react-router";
-import { useFetcher, useLoaderData } from "react-router";
+import { Link, useFetcher, useLoaderData } from "react-router";
 import { PageHeader } from "../components";
 import { authenticate } from "../shopify";
 import prisma from "../db";
 import { ensureDefaultRule } from "../inventory";
 import { sendEmailMessage, sendWhatsAppMessage } from "../notifications.server";
+import { syncPlan } from "../billing.server";
 
 export const loader = async ({ request }: LoaderFunctionArgs) => {
-  const { session } = await authenticate.admin(request);
+  const { session, billing } = await authenticate.admin(request);
   const rule = await ensureDefaultRule(session.shop);
-  return { rule };
+  const hasWhatsApp = await syncPlan(session.shop, billing);
+  return { rule, hasWhatsApp };
 };
 
 export const action = async ({ request }: ActionFunctionArgs) => {
-  const { session } = await authenticate.admin(request);
+  const { session, billing } = await authenticate.admin(request);
   const formData = await request.formData();
   const intent = String(formData.get("intent") || "");
 
   if (intent === "save-recipients") {
+    const hasWhatsApp = await syncPlan(session.shop, billing);
+    const whatsappRecipients = String(formData.get("whatsappRecipients") || "").trim();
+    if (whatsappRecipients && !hasWhatsApp) {
+      return { intent, ok: false, error: "WhatsApp alerts require the Pro plan." };
+    }
+
     const rule = await ensureDefaultRule(session.shop);
     await prisma.alertRule.update({
       where: { id: rule.id },
       data: {
         recipients: String(formData.get("recipients") || ""),
-        whatsappRecipients: String(formData.get("whatsappRecipients") || "") || null,
+        whatsappRecipients: whatsappRecipients || null,
       },
     });
     return { intent, ok: true };
@@ -42,6 +50,11 @@ export const action = async ({ request }: ActionFunctionArgs) => {
   }
 
   if (intent === "test-whatsapp") {
+    const hasWhatsApp = await syncPlan(session.shop, billing);
+    if (!hasWhatsApp) {
+      return { intent, ok: false, error: "WhatsApp alerts require the Pro plan." };
+    }
+
     const to = String(formData.get("testWhatsapp") || "").trim();
     if (!to) return { intent, ok: false, error: "Enter a WhatsApp number in E.164 format." };
 
@@ -75,9 +88,17 @@ function TestEmailForm() {
   );
 }
 
-function TestWhatsAppForm() {
+function TestWhatsAppForm({ hasWhatsApp }: { hasWhatsApp: boolean }) {
   const fetcher = useFetcher<{ ok: boolean; error?: string }>();
   const busy = fetcher.state !== "idle";
+
+  if (!hasWhatsApp) {
+    return (
+      <div className="rule-form">
+        <p style={{ color: "var(--muted)" }}>WhatsApp test messages require the Pro plan.</p>
+      </div>
+    );
+  }
 
   return (
     <fetcher.Form method="post" className="rule-form">
@@ -99,7 +120,7 @@ function TestWhatsAppForm() {
 }
 
 export default function Settings() {
-  const { rule } = useLoaderData<typeof loader>();
+  const { rule, hasWhatsApp } = useLoaderData<typeof loader>();
   const saveFetcher = useFetcher<{ ok: boolean }>();
 
   return (
@@ -125,10 +146,19 @@ export default function Settings() {
               <input name="recipients" type="text" defaultValue={rule.recipients} placeholder="you@example.com, staff@example.com" />
             </label>
             <label>
-              WhatsApp recipients
-              <input name="whatsappRecipients" type="text" defaultValue={rule.whatsappRecipients ?? ""} placeholder="+14155551234, +14155555678" />
+              WhatsApp recipients {!hasWhatsApp && <span className="badge">Pro plan</span>}
+              <input
+                name="whatsappRecipients"
+                type="text"
+                defaultValue={rule.whatsappRecipients ?? ""}
+                placeholder="+14155551234, +14155555678"
+                disabled={!hasWhatsApp}
+              />
             </label>
             {saveFetcher.data?.ok && <p style={{ color: "var(--ok)" }}>Saved.</p>}
+            {saveFetcher.data && !saveFetcher.data.ok && "error" in saveFetcher.data && (
+              <p style={{ color: "var(--danger)" }}>{String(saveFetcher.data.error)}</p>
+            )}
           </saveFetcher.Form>
         </div>
 
@@ -141,7 +171,7 @@ export default function Settings() {
           </div>
           <TestEmailForm />
           <div style={{ height: 16 }} />
-          <TestWhatsAppForm />
+          <TestWhatsAppForm hasWhatsApp={hasWhatsApp} />
         </div>
 
         <div className="panel">
@@ -162,10 +192,18 @@ export default function Settings() {
         <div className="panel plan-panel">
           <div>
             <h2>Current plan</h2>
-            <p>Starter plan monitors up to 500 products with hourly checks.</p>
+            <p>
+              {hasWhatsApp
+                ? "Pro plan — email and WhatsApp alerts included."
+                : "Free plan — email alerts included. Upgrade to Pro for WhatsApp alerts."}
+            </p>
           </div>
-          <div className="price">$9<span>/month</span></div>
-          <button className="ghost full" type="button">Manage billing</button>
+          <div className="price">{hasWhatsApp ? "$9" : "$0"}<span>/month</span></div>
+          {!hasWhatsApp && (
+            <Link className="primary full" to="/app/billing/upgrade">
+              Upgrade to Pro — $9/mo
+            </Link>
+          )}
         </div>
       </section>
     </>
