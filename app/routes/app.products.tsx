@@ -1,5 +1,5 @@
 import type { ActionFunctionArgs, LoaderFunctionArgs } from "react-router";
-import { redirect, useLoaderData } from "react-router";
+import { Form, redirect, useLoaderData } from "react-router";
 import { PageHeader, ProductTable } from "../components";
 import { authenticate } from "../shopify";
 import prisma from "../db";
@@ -72,9 +72,9 @@ export default function Products() {
             <p>Review variants, stock levels, thresholds, and reorder quantities.</p>
           </div>
         </div>
-        <form id="products-form" method="post">
+        <Form id="products-form" method="post">
           <ProductTable rows={rows} editable />
-        </form>
+        </Form>
       </section>
     </>
   );

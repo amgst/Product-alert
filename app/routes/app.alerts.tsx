@@ -1,5 +1,5 @@
 import type { ActionFunctionArgs, LoaderFunctionArgs } from "react-router";
-import { redirect, useLoaderData } from "react-router";
+import { Form, redirect, useLoaderData } from "react-router";
 import { PageHeader } from "../components";
 import { authenticate } from "../shopify";
 import prisma from "../db";
@@ -72,7 +72,7 @@ export default function Alerts() {
               <p>Create another rule for collections, products, or escalation.</p>
             </div>
           </div>
-          <form className="rule-form" method="post">
+          <Form className="rule-form" method="post">
             <label>Rule name<input name="name" type="text" defaultValue="Critical low stock" /></label>
             <label>Trigger<select name="triggerType" defaultValue="at_or_below_minimum"><option value="at_or_below_minimum">At or below minimum</option><option value="below_minimum">Below minimum only</option><option value="out_of_stock">Out of stock</option></select></label>
             <label>Frequency<select name="checkFrequency" defaultValue="hourly"><option value="hourly">Every hour</option><option value="three_hours">Every 3 hours</option><option value="daily">Daily summary</option></select></label>
@@ -80,7 +80,7 @@ export default function Alerts() {
             <label>Recipients<input name="recipients" type="text" defaultValue="ops@example.com" /></label>
             <label>WhatsApp recipients<input name="whatsappRecipients" type="text" placeholder="+14155551234, +14155555678" /></label>
             <button className="primary full" type="submit">Create rule</button>
-          </form>
+          </Form>
         </aside>
       </section>
     </>
