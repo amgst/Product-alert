@@ -36,6 +36,7 @@ model AlertRule {
   triggerType     String   @default("at_or_below_minimum")
   checkFrequency  String   @default("hourly")
   recipients      String
+  whatsappRecipients String?
   active          Boolean  @default(true)
   defaultMinimum  Int      @default(15)
   createdAt       DateTime @default(now())

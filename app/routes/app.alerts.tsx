@@ -28,6 +28,7 @@ export const action = async ({ request }: ActionFunctionArgs) => {
       triggerType: String(formData.get("triggerType") || "at_or_below_minimum"),
       checkFrequency: String(formData.get("checkFrequency") || "hourly"),
       recipients: String(formData.get("recipients") || ""),
+      whatsappRecipients: String(formData.get("whatsappRecipients") || "") || null,
       defaultMinimum: Number(formData.get("defaultMinimum") || 15),
       active: true,
     },
@@ -57,6 +58,7 @@ export default function Alerts() {
                 <div><dt>Trigger</dt><dd>{rule.triggerType.replaceAll("_", " ")}</dd></div>
                 <div><dt>Frequency</dt><dd>{rule.checkFrequency.replaceAll("_", " ")}</dd></div>
                 <div><dt>Recipients</dt><dd>{rule.recipients}</dd></div>
+                {rule.whatsappRecipients && <div><dt>WhatsApp</dt><dd>{rule.whatsappRecipients}</dd></div>}
                 <div><dt>Default minimum</dt><dd>{rule.defaultMinimum} units</dd></div>
               </dl>
             </article>
@@ -76,6 +78,7 @@ export default function Alerts() {
             <label>Frequency<select name="checkFrequency" defaultValue="hourly"><option value="hourly">Every hour</option><option value="three_hours">Every 3 hours</option><option value="daily">Daily summary</option></select></label>
             <label>Default minimum<input name="defaultMinimum" type="number" min="0" defaultValue="15" /></label>
             <label>Recipients<input name="recipients" type="text" defaultValue="ops@example.com" /></label>
+            <label>WhatsApp recipients<input name="whatsappRecipients" type="text" placeholder="+14155551234, +14155555678" /></label>
             <button className="primary full" type="submit">Create rule</button>
           </form>
         </aside>
