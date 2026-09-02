@@ -1,0 +1,39 @@
+{
+  "name": "min-stock-notifier",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "build": "react-router build",
+    "dev": "shopify app dev",
+    "info": "shopify app info",
+    "start": "shopify app dev",
+    "setup": "prisma generate && prisma db push",
+    "prisma": "prisma",
+    "typecheck": "tsc --noEmit"
+  },
+  "dependencies": {
+    "@prisma/client": "^6.15.0",
+    "@react-router/dev": "^7.9.6",
+    "@react-router/node": "^7.9.6",
+    "@react-router/serve": "^7.9.6",
+    "@shopify/app-bridge-react": "^4.2.13",
+    "@shopify/shopify-app-react-router": "^2.1.0",
+    "@shopify/shopify-app-session-storage-prisma": "^10.0.1",
+    "isbot": "^5.1.28",
+    "react": "^19.2.8",
+    "react-dom": "^19.2.8",
+    "react-router": "^7.9.6"
+  },
+  "devDependencies": {
+    "@types/node": "^24.3.0",
+    "@types/react": "^19.2.7",
+    "@types/react-dom": "^19.2.3",
+    "prisma": "^6.15.0",
+    "typescript": "^5.9.2",
+    "vite": "^7.1.3",
+    "vite-tsconfig-paths": "^5.1.4"
+  },
+  "engines": {
+    "node": ">=20.10"
+  }
+}

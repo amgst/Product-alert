@@ -1,0 +1,74 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "sqlite"
+  url      = env("DATABASE_URL")
+}
+
+model Session {
+  id            String    @id
+  shop          String
+  state         String
+  isOnline      Boolean   @default(false)
+  scope         String?
+  expires       DateTime?
+  accessToken   String
+  userId        BigInt?
+  firstName     String?
+  lastName      String?
+  email         String?
+  accountOwner  Boolean   @default(false)
+  locale        String?
+  collaborator  Boolean?  @default(false)
+  emailVerified Boolean?  @default(false)
+}
+
+model AlertRule {
+  id              String   @id @default(cuid())
+  shop            String
+  name            String
+  appliesTo       String   @default("all_products")
+  triggerType     String   @default("at_or_below_minimum")
+  checkFrequency  String   @default("hourly")
+  recipients      String
+  active          Boolean  @default(true)
+  defaultMinimum  Int      @default(15)
+  createdAt       DateTime @default(now())
+  updatedAt       DateTime @updatedAt
+
+  @@index([shop])
+}
+
+model ProductThreshold {
+  id             String   @id @default(cuid())
+  shop           String
+  productId      String
+  variantId      String?
+  sku            String?
+  productTitle   String
+  variantTitle   String?
+  minimumStock   Int      @default(10)
+  reorderQuantity Int     @default(50)
+  watchEnabled   Boolean  @default(true)
+  createdAt      DateTime @default(now())
+  updatedAt      DateTime @updatedAt
+
+  @@unique([shop, productId, variantId])
+  @@index([shop])
+}
+
+model NotificationEvent {
+  id          String   @id @default(cuid())
+  shop        String
+  productId   String?
+  variantId   String?
+  title       String
+  message     String
+  level       String   @default("warning")
+  recipient   String?
+  sentAt      DateTime @default(now())
+
+  @@index([shop])
+}

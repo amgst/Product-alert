@@ -1,0 +1,9 @@
+node_modules/
+.npm-cache/
+.env
+*.sqlite
+*.sqlite-journal
+.react-router/
+build/
+dist/
+.DS_Store
