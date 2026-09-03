@@ -6,10 +6,21 @@ type BillingContext = Awaited<ReturnType<typeof authenticate.admin>>["billing"];
 const isTest = process.env.NODE_ENV !== "production";
 
 export async function syncPlan(shop: string, billing: BillingContext) {
-  const { hasActivePayment, appSubscriptions } = await billing.check({
-    plans: [PRO_PLAN],
-    isTest,
-  });
+  let hasActivePayment: boolean;
+  let appSubscriptions: Array<{ id: string }>;
+
+  try {
+    ({ hasActivePayment, appSubscriptions } = await billing.check({
+      plans: [PRO_PLAN],
+      isTest,
+    }));
+  } catch (err: any) {
+    const body = err?.response?.body ?? err?.errors?.body ?? err?.body;
+    throw new Response(
+      `billing.check() failed for ${shop}.\n\nRaw error: ${err?.message}\n\nnetworkStatusCode: ${err?.errors?.networkStatusCode ?? err?.networkStatusCode}\n\nResponse body: ${typeof body === "string" ? body : JSON.stringify(body)}`,
+      { status: err?.errors?.networkStatusCode ?? 500, statusText: "Billing Check Failed" },
+    );
+  }
 
   await prisma.shop.upsert({
     where: { shop },
