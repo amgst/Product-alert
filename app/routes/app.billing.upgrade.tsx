@@ -9,7 +9,7 @@ export const loader = async ({ request }: LoaderFunctionArgs) => {
 
   try {
     return await billing.request({
-      plan: PRO_PLAN,
+      plan: PRO_PLAN as any,
       isTest,
       returnUrl: `${process.env.SHOPIFY_APP_URL}/app/settings`,
     });

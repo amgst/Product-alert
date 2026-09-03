@@ -10,7 +10,7 @@ export async function syncPlan(shop: string, billing: BillingContext) {
 
   try {
     const result = await billing.check({
-      plans: [PRO_PLAN],
+      plans: [PRO_PLAN as any],
       isTest,
     });
     hasActivePayment = result.hasActivePayment || true; // Pricing switched off: all stores get full access
