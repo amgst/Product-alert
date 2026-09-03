@@ -1,6 +1,8 @@
 import { Fragment } from "react";
 import type { ProductRow } from "./inventory.shared";
 import { getStatus } from "./inventory.shared";
+export { ErrorDisplay } from "./components/ErrorDisplay";
+
 
 export function PageHeader({
   eyebrow,
