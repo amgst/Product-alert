@@ -46,19 +46,21 @@ export async function loadInventoryRows(admin: { graphql: (query: string) => Pro
     ]);
   } catch (err: any) {
     if (err?.errors?.networkStatusCode === 403 || err?.message?.includes("Forbidden")) {
-      throw new Response("Shopify GraphQL Access Forbidden (403). Your store session token has expired or is invalid.", {
-        status: 403,
-        statusText: "Forbidden",
-      });
+      const body = err?.response?.body ?? err?.errors?.body ?? err?.body;
+      throw new Response(
+        `Shopify GraphQL products query returned 403 Forbidden.\n\nRaw error: ${err?.message}\n\nResponse body: ${typeof body === "string" ? body : JSON.stringify(body)}`,
+        { status: 403, statusText: "Forbidden" },
+      );
     }
     throw err;
   }
 
   if (response.status === 403 || response.status === 401) {
-    throw new Response(`Shopify Admin API returned ${response.status} ${response.statusText || "Forbidden"}. Re-authentication is required.`, {
-      status: response.status,
-      statusText: response.statusText || "Forbidden",
-    });
+    const bodyText = await response.text().catch(() => "<could not read response body>");
+    throw new Response(
+      `Shopify Admin API returned ${response.status} ${response.statusText || "Forbidden"} for the products query.\n\nResponse body: ${bodyText}`,
+      { status: response.status, statusText: response.statusText || "Forbidden" },
+    );
   }
 
   const payload = (await response.json()) as { data?: { products?: { nodes?: ShopifyProduct[] } }; errors?: Array<{ message: string }> };
