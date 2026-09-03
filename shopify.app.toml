@@ -27,5 +27,17 @@ uri = "/webhooks/app/uninstalled"
 topics = [ "inventory_levels/update" ]
 uri = "/webhooks/inventory-levels-update"
 
+[[webhooks.subscriptions]]
+topics = [ "customers/data_request" ]
+uri = "/webhooks/customers/data-request"
+
+[[webhooks.subscriptions]]
+topics = [ "customers/redact" ]
+uri = "/webhooks/customers/redact"
+
+[[webhooks.subscriptions]]
+topics = [ "shop/redact" ]
+uri = "/webhooks/shop/redact"
+
 [pos]
 embedded = false

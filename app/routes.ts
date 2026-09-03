@@ -5,6 +5,9 @@ export default [
   route("auth/*", "routes/auth.$.tsx"),
   route("webhooks/app/uninstalled", "routes/webhooks.app.uninstalled.tsx"),
   route("webhooks/inventory-levels-update", "routes/webhooks.inventory-levels-update.tsx"),
+  route("webhooks/customers/data-request", "routes/webhooks.customers.data-request.tsx"),
+  route("webhooks/customers/redact", "routes/webhooks.customers.redact.tsx"),
+  route("webhooks/shop/redact", "routes/webhooks.shop.redact.tsx"),
   route("app", "routes/app.tsx", [
     index("routes/app._index.tsx"),
     route("products", "routes/app.products.tsx"),
