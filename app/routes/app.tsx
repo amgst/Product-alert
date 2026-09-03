@@ -17,12 +17,26 @@ export function ErrorBoundary() {
   const error = useRouteError();
 
   if (isRouteErrorResponse(error)) {
-    // 404 Not Found and 500+ Server Errors render custom ErrorDisplay
-    if (error.status === 404 || error.status >= 500) {
-      return <ErrorDisplay error={error} />;
+    // If response data is Shopify App Bridge bounce HTML, execute it directly to redirect for re-auth
+    if (typeof error.data === "string" && (error.data.includes("app-bridge.js") || error.data.includes("shopifycloud"))) {
+      return (
+        <div
+          dangerouslySetInnerHTML={{ __html: error.data }}
+          ref={(node) => {
+            if (node) {
+              const scripts = node.querySelectorAll("script");
+              scripts.forEach((oldScript) => {
+                const newScript = document.createElement("script");
+                Array.from(oldScript.attributes).forEach((attr) => newScript.setAttribute(attr.name, attr.value));
+                newScript.appendChild(document.createTextNode(oldScript.innerHTML));
+                oldScript.parentNode?.replaceChild(newScript, oldScript);
+              });
+            }
+          }}
+        />
+      );
     }
 
-    // Auth responses (401, 403, redirects) are handled by Shopify boundary for embedded bounce/re-auth
     try {
       const shopifyResult = boundary.error(error);
       if (shopifyResult) return shopifyResult;

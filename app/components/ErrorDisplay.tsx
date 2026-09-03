@@ -18,7 +18,11 @@ export function ErrorDisplay({ error, isRoot = false }: { error: unknown; isRoot
       isNotFoundError = true;
       title = "Page Not Found (404)";
       message = "The page or resource you requested does not exist or has been moved.";
-    } else if (error.status === 401 || error.status === 403) {
+    } else if (
+      error.status === 401 ||
+      error.status === 403 ||
+      (typeof error.data === "string" && (error.data.includes("app-bridge.js") || error.data.includes("shopifycloud")))
+    ) {
       isAuthError = true;
       title = "Shopify Session Expired";
       message = "Your Shopify Admin session token is missing or expired. Re-authentication is required to access the app.";

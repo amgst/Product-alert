@@ -46,18 +46,28 @@ export function ErrorBoundary() {
   const error = useRouteError();
 
   if (isRouteErrorResponse(error)) {
-    if (error.status === 404 || error.status >= 500) {
+    if (typeof error.data === "string" && (error.data.includes("app-bridge.js") || error.data.includes("shopifycloud"))) {
       return (
         <html lang="en">
           <head>
-            <title>MinStock Notifier - Error</title>
+            <title>Re-authenticating Shopify Store...</title>
             <meta charSet="utf-8" />
-            <meta name="viewport" content="width=device-width,initial-scale=1" />
-            <Meta />
-            <Links />
           </head>
           <body>
-            <ErrorDisplay error={error} isRoot />
+            <div
+              dangerouslySetInnerHTML={{ __html: error.data }}
+              ref={(node) => {
+                if (node) {
+                  const scripts = node.querySelectorAll("script");
+                  scripts.forEach((oldScript) => {
+                    const newScript = document.createElement("script");
+                    Array.from(oldScript.attributes).forEach((attr) => newScript.setAttribute(attr.name, attr.value));
+                    newScript.appendChild(document.createTextNode(oldScript.innerHTML));
+                    oldScript.parentNode?.replaceChild(newScript, oldScript);
+                  });
+                }
+              }}
+            />
             <Scripts />
           </body>
         </html>
