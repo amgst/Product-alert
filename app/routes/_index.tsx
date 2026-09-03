@@ -1,5 +1,6 @@
-import type { LoaderFunctionArgs } from "react-router";
+import type { HeadersFunction, LoaderFunctionArgs } from "react-router";
 import { redirect } from "react-router";
+import { boundary } from "@shopify/shopify-app-react-router/server";
 
 export const loader = async ({ request }: LoaderFunctionArgs) => {
   const url = new URL(request.url);
@@ -9,6 +10,10 @@ export const loader = async ({ request }: LoaderFunctionArgs) => {
   }
 
   return null;
+};
+
+export const headers: HeadersFunction = (headersArgs) => {
+  return boundary.headers(headersArgs);
 };
 
 export default function Index() {
