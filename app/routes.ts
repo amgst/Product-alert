@@ -14,6 +14,7 @@ export default [
     route("alerts", "routes/app.alerts.tsx"),
     route("settings", "routes/app.settings.tsx"),
     route("billing/upgrade", "routes/app.billing.upgrade.tsx"),
+    route("debug", "routes/app.debug.tsx"),
   ]),
   index("routes/_index.tsx"),
 ] satisfies RouteConfig;

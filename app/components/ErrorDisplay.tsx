@@ -214,9 +214,14 @@ export function ErrorDisplay({ error, isRoot = false }: { error: unknown; isRoot
           </button>
 
           {isAuthError ? (
-            <button className="ghost" onClick={handleReauth} type="button">
-              Re-authenticate Store
-            </button>
+            <>
+              <button className="ghost" onClick={handleReauth} type="button">
+                Re-authenticate Store
+              </button>
+              <a className="ghost" href="/app/debug">
+                Open Debugger
+              </a>
+            </>
           ) : (
             <a className="ghost" href="/app">
               Go to Dashboard
