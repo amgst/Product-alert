@@ -1,5 +1,5 @@
 import type { HeadersFunction, LoaderFunctionArgs } from "react-router";
-import { Link, Outlet, useLocation, useNavigation, useRouteError } from "react-router";
+import { Link, Outlet, isRouteErrorResponse, useLocation, useNavigation, useRouteError } from "react-router";
 import { boundary } from "@shopify/shopify-app-react-router/server";
 import { authenticate } from "../shopify";
 import { ErrorDisplay } from "../components/ErrorDisplay";
@@ -16,15 +16,13 @@ export const headers: HeadersFunction = (headersArgs) => {
 export function ErrorBoundary() {
   const error = useRouteError();
 
-  if (
-    error &&
-    typeof error === "object" &&
-    "data" in error &&
-    typeof (error as { data?: unknown }).data === "string" &&
-    ((error as { data: string }).data.includes("<script") ||
-      (error as { data: string }).data.includes("shopify-reload") ||
-      (error as { data: string }).data.includes("window.top"))
-  ) {
+  if (isRouteErrorResponse(error)) {
+    // 404 Not Found and 500+ Server Errors render custom ErrorDisplay
+    if (error.status === 404 || error.status >= 500) {
+      return <ErrorDisplay error={error} />;
+    }
+
+    // Auth responses (401, 403, redirects) are handled by Shopify boundary for embedded bounce/re-auth
     try {
       const shopifyResult = boundary.error(error);
       if (shopifyResult) return shopifyResult;
@@ -35,6 +33,7 @@ export function ErrorBoundary() {
 
   return <ErrorDisplay error={error} />;
 }
+
 
 
 const navItems = [

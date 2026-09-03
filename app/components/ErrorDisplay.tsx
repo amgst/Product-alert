@@ -73,14 +73,19 @@ export function ErrorDisplay({ error, isRoot = false }: { error: unknown; isRoot
 
   const handleReauth = () => {
     if (typeof window !== "undefined") {
-      const url = `${window.location.origin}/auth`;
+      const searchParams = new URLSearchParams(window.location.search);
+      const shop = searchParams.get("shop");
+      const targetUrl = shop ? `/auth?shop=${encodeURIComponent(shop)}` : "/auth";
+      const fullUrl = `${window.location.origin}${targetUrl}`;
+
       if (window.top && window.top !== window) {
-        window.top.location.href = url;
+        window.top.location.href = fullUrl;
       } else {
-        window.location.href = url;
+        window.location.href = fullUrl;
       }
     }
   };
+
 
   const containerStyle: React.CSSProperties = isRoot
     ? {

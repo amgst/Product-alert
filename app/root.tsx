@@ -4,6 +4,7 @@ import {
   Outlet,
   Scripts,
   ScrollRestoration,
+  isRouteErrorResponse,
   useLoaderData,
   useRouteError,
 } from "react-router";
@@ -44,20 +45,30 @@ export default function App() {
 export function ErrorBoundary() {
   const error = useRouteError();
 
-  if (
-    error &&
-    typeof error === "object" &&
-    "data" in error &&
-    typeof (error as { data?: unknown }).data === "string" &&
-    ((error as { data: string }).data.includes("<script") ||
-      (error as { data: string }).data.includes("shopify-reload") ||
-      (error as { data: string }).data.includes("window.top"))
-  ) {
+  if (isRouteErrorResponse(error)) {
+    if (error.status === 404 || error.status >= 500) {
+      return (
+        <html lang="en">
+          <head>
+            <title>MinStock Notifier - Error</title>
+            <meta charSet="utf-8" />
+            <meta name="viewport" content="width=device-width,initial-scale=1" />
+            <Meta />
+            <Links />
+          </head>
+          <body>
+            <ErrorDisplay error={error} isRoot />
+            <Scripts />
+          </body>
+        </html>
+      );
+    }
+
     try {
       const shopifyResult = boundary.error(error);
       if (shopifyResult) return shopifyResult;
     } catch {
-      // Fall through to ErrorDisplay if boundary rendering fails
+      // Fall through to ErrorDisplay if boundary handling fails
     }
   }
 
@@ -77,4 +88,5 @@ export function ErrorBoundary() {
     </html>
   );
 }
+
 
