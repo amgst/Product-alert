@@ -12,6 +12,7 @@ scopes = "read_products,read_inventory"
 [auth]
 redirect_urls = [
   "https://productalert.vercel.app/auth/callback",
+  "https://productalert.vercel.app/auth/patchSession",
   "https://productalert.vercel.app/auth/shopify/callback",
   "https://productalert.vercel.app/api/auth/callback"
 ]
