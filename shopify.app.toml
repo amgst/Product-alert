@@ -27,17 +27,10 @@ uri = "/webhooks/app/uninstalled"
 topics = [ "inventory_levels/update" ]
 uri = "/webhooks/inventory-levels-update"
 
-[[webhooks.subscriptions]]
-topics = [ "customers/data_request" ]
-uri = "/webhooks/customers/data-request"
-
-[[webhooks.subscriptions]]
-topics = [ "customers/redact" ]
-uri = "/webhooks/customers/redact"
-
-[[webhooks.subscriptions]]
-topics = [ "shop/redact" ]
-uri = "/webhooks/shop/redact"
+[webhooks.privacy_compliance]
+customer_data_request_url = "https://productalert.vercel.app/webhooks/customers/data-request"
+customer_deletion_url = "https://productalert.vercel.app/webhooks/customers/redact"
+shop_deletion_url = "https://productalert.vercel.app/webhooks/shop/redact"
 
 [pos]
 embedded = false
