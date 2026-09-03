@@ -18,29 +18,50 @@ type ShopifyProduct = {
 };
 
 export async function loadInventoryRows(admin: { graphql: (query: string) => Promise<Response> }, shop: string) {
-  const [response, thresholds] = await Promise.all([
-    admin.graphql(`
-      #graphql
-      query MinStockProducts {
-        products(first: 25, sortKey: UPDATED_AT, reverse: true) {
-          nodes {
-            id
-            title
-            variants(first: 20) {
-              nodes {
-                id
-                title
-                sku
-                inventoryQuantity
+  let response: Response;
+  let thresholds: ProductThreshold[];
+
+  try {
+    [response, thresholds] = await Promise.all([
+      admin.graphql(`
+        #graphql
+        query MinStockProducts {
+          products(first: 25, sortKey: UPDATED_AT, reverse: true) {
+            nodes {
+              id
+              title
+              variants(first: 20) {
+                nodes {
+                  id
+                  title
+                  sku
+                  inventoryQuantity
+                }
               }
             }
           }
         }
-      }
-    `),
-    prisma.productThreshold.findMany({ where: { shop } }) as Promise<ProductThreshold[]>,
-  ]);
-  const payload = (await response.json()) as { data?: { products?: { nodes?: ShopifyProduct[] } } };
+      `),
+      prisma.productThreshold.findMany({ where: { shop } }) as Promise<ProductThreshold[]>,
+    ]);
+  } catch (err: any) {
+    if (err?.errors?.networkStatusCode === 403 || err?.message?.includes("Forbidden")) {
+      throw new Response("Shopify GraphQL Access Forbidden (403). Your store session token has expired or is invalid.", {
+        status: 403,
+        statusText: "Forbidden",
+      });
+    }
+    throw err;
+  }
+
+  if (response.status === 403 || response.status === 401) {
+    throw new Response(`Shopify Admin API returned ${response.status} ${response.statusText || "Forbidden"}. Re-authentication is required.`, {
+      status: response.status,
+      statusText: response.statusText || "Forbidden",
+    });
+  }
+
+  const payload = (await response.json()) as { data?: { products?: { nodes?: ShopifyProduct[] } }; errors?: Array<{ message: string }> };
   const products = payload?.data?.products?.nodes ?? [];
   const thresholdMap = new Map(
     thresholds.map((item) => [`${item.productId}:${item.variantId ?? ""}`, item] as const),
@@ -66,6 +87,7 @@ export async function loadInventoryRows(admin: { graphql: (query: string) => Pro
     }),
   );
 }
+
 
 export async function ensureDefaultRule(shop: string) {
   const existing = await prisma.alertRule.findFirst({ where: { shop } });

@@ -60,8 +60,32 @@ export function ErrorDisplay({ error, isRoot = false }: { error: unknown; isRoot
     detailMessage = error;
   } else if (error && typeof error === "object") {
     detailMessage = JSON.stringify(error, null, 2);
-    message = (error as { message?: string }).message || "An error occurred with no specific details provided.";
+    const errObj = error as Record<string, any>;
+    const nestedMsg = errObj?.errors?.message || errObj?.message || errObj?.error;
+    const code = errObj?.errors?.networkStatusCode || errObj?.status || errObj?.statusCode || 500;
+    statusCode = typeof code === "number" ? code : 500;
+
+    const lowerMsg = typeof nestedMsg === "string" ? nestedMsg.toLowerCase() : "";
+
+    if (
+      statusCode === 403 ||
+      statusCode === 401 ||
+      lowerMsg.includes("forbidden") ||
+      lowerMsg.includes("unauthorized") ||
+      lowerMsg.includes("client: forbidden")
+    ) {
+      isAuthError = true;
+      title = "Shopify Access Expired or Forbidden";
+      message =
+        typeof nestedMsg === "string"
+          ? `${nestedMsg}. Your Shopify access token has expired or lacks API permissions. Re-authentication is required.`
+          : "Your Shopify access token has expired or lacks API permissions. Re-authentication is required.";
+    } else {
+      title = "Application Load Failure";
+      message = typeof nestedMsg === "string" ? nestedMsg : "An error occurred with no specific details provided.";
+    }
   }
+
 
   const inIframe = typeof window !== "undefined" && window.top !== window;
 
