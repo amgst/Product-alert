@@ -9,8 +9,10 @@ import { syncPlan } from "../billing.server";
 
 export const loader = async ({ request }: LoaderFunctionArgs) => {
   const { session, billing } = await authenticate.admin(request);
-  const rule = await ensureDefaultRule(session.shop);
-  const hasWhatsApp = await syncPlan(session.shop, billing);
+  const [rule, hasWhatsApp] = await Promise.all([
+    ensureDefaultRule(session.shop),
+    syncPlan(session.shop, billing),
+  ]);
   return { rule, hasWhatsApp };
 };
 

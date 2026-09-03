@@ -2,6 +2,7 @@ import type { ActionFunctionArgs, LoaderFunctionArgs } from "react-router";
 import { Link, useFetcher, useLoaderData } from "react-router";
 import { PageHeader, ProductTable } from "../components";
 import { getStatus } from "../inventory.shared";
+import type { ProductRow } from "../inventory.shared";
 import { authenticate } from "../shopify";
 import prisma from "../db";
 import { ensureDefaultRule, loadInventoryRows } from "../inventory";
@@ -9,23 +10,27 @@ import type { NotificationEvent } from "@prisma/client";
 
 export const loader = async ({ request }: LoaderFunctionArgs) => {
   const { admin, session } = await authenticate.admin(request);
-  const rows = await loadInventoryRows(admin, session.shop);
-  const rule = await ensureDefaultRule(session.shop);
-  const events = await prisma.notificationEvent.findMany({
-    where: { shop: session.shop },
-    orderBy: { sentAt: "desc" },
-    take: 5,
-  });
+  const shop = session.shop;
+
+  // ensureDefaultRule runs first: it lazily creates a shop's first AlertRule row,
+  // and activeRules below must count that row on this very load, not just the next one.
+  const rule = await ensureDefaultRule(shop);
+  const [rows, events, activeRules, alertsSent] = await Promise.all([
+    loadInventoryRows(admin, shop),
+    prisma.notificationEvent.findMany({ where: { shop }, orderBy: { sentAt: "desc" }, take: 5 }),
+    prisma.alertRule.count({ where: { shop, active: true } }),
+    prisma.notificationEvent.count({ where: { shop } }),
+  ]);
 
   return {
     rows,
     rule,
     events,
     counts: {
-      belowMinimum: rows.filter((row) => getStatus(row).tone === "danger").length,
-      nearThreshold: rows.filter((row) => getStatus(row).tone === "warning").length,
-      activeRules: await prisma.alertRule.count({ where: { shop: session.shop, active: true } }),
-      alertsSent: await prisma.notificationEvent.count({ where: { shop: session.shop } }),
+      belowMinimum: rows.filter((row: ProductRow) => getStatus(row).tone === "danger").length,
+      nearThreshold: rows.filter((row: ProductRow) => getStatus(row).tone === "warning").length,
+      activeRules,
+      alertsSent,
     },
   };
 };

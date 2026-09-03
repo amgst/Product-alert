@@ -18,28 +18,30 @@ type ShopifyProduct = {
 };
 
 export async function loadInventoryRows(admin: { graphql: (query: string) => Promise<Response> }, shop: string) {
-  const response = await admin.graphql(`
-    #graphql
-    query MinStockProducts {
-      products(first: 25, sortKey: UPDATED_AT, reverse: true) {
-        nodes {
-          id
-          title
-          variants(first: 20) {
-            nodes {
-              id
-              title
-              sku
-              inventoryQuantity
+  const [response, thresholds] = await Promise.all([
+    admin.graphql(`
+      #graphql
+      query MinStockProducts {
+        products(first: 25, sortKey: UPDATED_AT, reverse: true) {
+          nodes {
+            id
+            title
+            variants(first: 20) {
+              nodes {
+                id
+                title
+                sku
+                inventoryQuantity
+              }
             }
           }
         }
       }
-    }
-  `);
+    `),
+    prisma.productThreshold.findMany({ where: { shop } }) as Promise<ProductThreshold[]>,
+  ]);
   const payload = (await response.json()) as { data?: { products?: { nodes?: ShopifyProduct[] } } };
   const products = payload?.data?.products?.nodes ?? [];
-  const thresholds: ProductThreshold[] = await prisma.productThreshold.findMany({ where: { shop } });
   const thresholdMap = new Map(
     thresholds.map((item) => [`${item.productId}:${item.variantId ?? ""}`, item] as const),
   );

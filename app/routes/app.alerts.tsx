@@ -10,8 +10,12 @@ import type { AlertRule } from "@prisma/client";
 
 export const loader = async ({ request }: LoaderFunctionArgs) => {
   const { session, billing } = await authenticate.admin(request);
-  await ensureDefaultRule(session.shop);
-  const hasWhatsApp = await syncPlan(session.shop, billing);
+  // ensureDefaultRule must finish before the findMany below, so the just-created
+  // default rule is guaranteed to show up on a shop's very first load.
+  const [, hasWhatsApp] = await Promise.all([
+    ensureDefaultRule(session.shop),
+    syncPlan(session.shop, billing),
+  ]);
   return {
     hasWhatsApp,
     rules: await prisma.alertRule.findMany({
