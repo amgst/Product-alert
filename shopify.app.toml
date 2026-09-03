@@ -1,5 +1,5 @@
 name = "Min Stock Notifier"
-client_id = "replace_with_your_client_id"
+client_id = "b9c12006a26e2d23e68a4b7852490171"
 application_url = "https://productalert.vercel.app"
 embedded = true
 
