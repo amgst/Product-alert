@@ -595,6 +595,20 @@ legend {
   gap: 12px;
 }
 
+.rule-actions {
+  display: flex;
+  gap: 8px;
+}
+
+.rule-actions form {
+  display: contents;
+}
+
+.ghost.danger {
+  color: var(--danger);
+  border-color: var(--danger);
+}
+
 dl {
   display: grid;
   gap: 10px;
