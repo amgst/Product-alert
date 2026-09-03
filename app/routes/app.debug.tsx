@@ -81,9 +81,13 @@ export const loader = async ({ request }: LoaderFunctionArgs) => {
         };
       }
     } catch (err: any) {
+      const errMsg =
+        err?.errors?.message ||
+        err?.message ||
+        (typeof err === "object" ? JSON.stringify(err, Object.getOwnPropertyNames(err), 2) : String(err));
       graphqlTest = {
         ok: false,
-        error: err?.message || JSON.stringify(err, null, 2),
+        error: errMsg,
       };
     }
   }
