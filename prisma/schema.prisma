@@ -82,4 +82,5 @@ model NotificationEvent {
   sentAt      DateTime @default(now())
 
   @@index([shop])
+  @@index([shop, productId, variantId, sentAt])
 }
