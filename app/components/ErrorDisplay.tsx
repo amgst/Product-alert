@@ -98,7 +98,15 @@ export function ErrorDisplay({ error, isRoot = false }: { error: unknown; isRoot
   const handleReauth = () => {
     if (typeof window !== "undefined") {
       const searchParams = new URLSearchParams(window.location.search);
-      const shop = searchParams.get("shop");
+      let shop = searchParams.get("shop");
+      if (!shop && document.referrer) {
+        try {
+          const refParams = new URLSearchParams(new URL(document.referrer).search);
+          shop = refParams.get("shop");
+        } catch {
+          // ignore invalid referrer URL
+        }
+      }
       const targetUrl = shop ? `/auth?shop=${encodeURIComponent(shop)}` : "/auth";
       const fullUrl = `${window.location.origin}${targetUrl}`;
 
