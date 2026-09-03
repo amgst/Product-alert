@@ -37,6 +37,17 @@ export const action = async ({ request }: ActionFunctionArgs) => {
     return { intent, ok: true };
   }
 
+  if (intent === "save-sync") {
+    const rule = await ensureDefaultRule(session.shop);
+    await prisma.alertRule.update({
+      where: { id: rule.id },
+      data: {
+        checkFrequency: String(formData.get("checkFrequency") || "hourly"),
+      },
+    });
+    return { intent, ok: true };
+  }
+
   if (intent === "test-email") {
     const to = String(formData.get("testEmail") || "").trim();
     if (!to) return { intent, ok: false, error: "Enter an email address." };
@@ -122,6 +133,7 @@ function TestWhatsAppForm({ hasWhatsApp }: { hasWhatsApp: boolean }) {
 export default function Settings() {
   const { rule, hasWhatsApp } = useLoaderData<typeof loader>();
   const saveFetcher = useFetcher<{ ok: boolean }>();
+  const syncFetcher = useFetcher<{ ok: boolean }>();
   const [searchParams] = useSearchParams();
   const billingError = searchParams.get("billingError");
 
@@ -188,12 +200,24 @@ export default function Settings() {
               <p>Control how often Shopify inventory is checked.</p>
             </div>
           </div>
-          <form className="rule-form">
-            <label>Sync schedule<select defaultValue="hourly"><option value="hourly">Every hour</option><option value="three_hours">Every 3 hours</option><option value="daily">Every 24 hours</option></select></label>
+          <syncFetcher.Form method="post" className="rule-form">
+            <input type="hidden" name="intent" value="save-sync" />
+            <label>
+              Sync schedule
+              <select name="checkFrequency" defaultValue={rule.checkFrequency}>
+                <option value="hourly">Every hour</option>
+                <option value="three_hours">Every 3 hours</option>
+                <option value="daily">Every 24 hours</option>
+              </select>
+            </label>
             <label>Timezone<select defaultValue="store"><option value="store">Store timezone</option><option value="utc">UTC</option></select></label>
             <label>Ignore products tagged<input type="text" defaultValue="preorder, dropship, discontinued" /></label>
             <label className="check"><input type="checkbox" defaultChecked /> Include committed inventory in warning emails</label>
-          </form>
+            <button className="ghost full" type="submit" disabled={syncFetcher.state !== "idle"}>
+              {syncFetcher.state !== "idle" ? "Saving…" : "Save sync schedule"}
+            </button>
+            {syncFetcher.data?.ok && <p style={{ color: "var(--ok)", margin: 0 }}>Sync schedule updated.</p>}
+          </syncFetcher.Form>
         </div>
 
         <div className="panel plan-panel">

@@ -37,14 +37,15 @@ export async function loadInventoryRows(admin: { graphql: (query: string) => Pro
       }
     }
   `);
-  const payload = (await response.json()) as { data: { products: { nodes: ShopifyProduct[] } } };
+  const payload = (await response.json()) as { data?: { products?: { nodes?: ShopifyProduct[] } } };
+  const products = payload?.data?.products?.nodes ?? [];
   const thresholds: ProductThreshold[] = await prisma.productThreshold.findMany({ where: { shop } });
   const thresholdMap = new Map(
     thresholds.map((item) => [`${item.productId}:${item.variantId ?? ""}`, item] as const),
   );
 
-  return payload.data.products.nodes.flatMap((product) =>
-    product.variants.nodes.map((variant) => {
+  return products.flatMap((product) =>
+    (product.variants?.nodes ?? []).map((variant) => {
       const saved = thresholdMap.get(`${product.id}:${variant.id}`);
       const available = variant.inventoryQuantity ?? 0;
 

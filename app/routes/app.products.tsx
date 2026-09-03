@@ -13,14 +13,23 @@ export const loader = async ({ request }: LoaderFunctionArgs) => {
 export const action = async ({ request }: ActionFunctionArgs) => {
   const { session } = await authenticate.admin(request);
   const formData = await request.formData();
+  const prefix = "productId:";
   const indexes = [...formData.keys()]
-    .filter((key) => key.startsWith("productId:"))
-    .map((key) => key.split(":")[1]);
+    .filter((key) => key.startsWith(prefix))
+    .map((key) => key.slice(prefix.length));
+
+  function parseQty(val: FormDataEntryValue | null, fallback = 0): number {
+    const parsed = parseInt(String(val ?? ""), 10);
+    return isNaN(parsed) ? fallback : Math.max(0, parsed);
+  }
 
   await Promise.all(
     indexes.map((index) => {
-      const productId = String(formData.get(`productId:${index}`));
-      const variantId = String(formData.get(`variantId:${index}`));
+      const productId = String(formData.get(`productId:${index}`) || "");
+      const variantId = String(formData.get(`variantId:${index}`) || "");
+
+      const minimumStock = parseQty(formData.get(`minimumStock:${index}`), 15);
+      const reorderQuantity = parseQty(formData.get(`reorderQuantity:${index}`), 50);
 
       return prisma.productThreshold.upsert({
         where: {
@@ -34,8 +43,8 @@ export const action = async ({ request }: ActionFunctionArgs) => {
           sku: String(formData.get(`sku:${index}`) || ""),
           productTitle: String(formData.get(`productTitle:${index}`) || ""),
           variantTitle: String(formData.get(`variantTitle:${index}`) || ""),
-          minimumStock: Number(formData.get(`minimumStock:${index}`) || 0),
-          reorderQuantity: Number(formData.get(`reorderQuantity:${index}`) || 0),
+          minimumStock,
+          reorderQuantity,
           watchEnabled: formData.has(`watchEnabled:${index}`),
         },
         create: {
@@ -45,8 +54,8 @@ export const action = async ({ request }: ActionFunctionArgs) => {
           sku: String(formData.get(`sku:${index}`) || ""),
           productTitle: String(formData.get(`productTitle:${index}`) || ""),
           variantTitle: String(formData.get(`variantTitle:${index}`) || ""),
-          minimumStock: Number(formData.get(`minimumStock:${index}`) || 0),
-          reorderQuantity: Number(formData.get(`reorderQuantity:${index}`) || 0),
+          minimumStock,
+          reorderQuantity,
           watchEnabled: formData.has(`watchEnabled:${index}`),
         },
       });

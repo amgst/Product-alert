@@ -1,5 +1,5 @@
-import type { LoaderFunctionArgs } from "react-router";
-import { Link, useLoaderData } from "react-router";
+import type { ActionFunctionArgs, LoaderFunctionArgs } from "react-router";
+import { Link, useFetcher, useLoaderData } from "react-router";
 import { PageHeader, ProductTable } from "../components";
 import { getStatus } from "../inventory.shared";
 import { authenticate } from "../shopify";
@@ -30,8 +30,25 @@ export const loader = async ({ request }: LoaderFunctionArgs) => {
   };
 };
 
+export const action = async ({ request }: ActionFunctionArgs) => {
+  const { session } = await authenticate.admin(request);
+  const formData = await request.formData();
+  const rule = await ensureDefaultRule(session.shop);
+
+  await prisma.alertRule.update({
+    where: { id: rule.id },
+    data: {
+      triggerType: String(formData.get("triggerType") || "at_or_below_minimum"),
+      checkFrequency: String(formData.get("checkFrequency") || "hourly"),
+    },
+  });
+
+  return { ok: true };
+};
+
 export default function Dashboard() {
-  const { rows, counts, events } = useLoaderData<typeof loader>();
+  const { rows, rule, counts, events } = useLoaderData<typeof loader>();
+  const fetcher = useFetcher<{ ok?: boolean }>();
 
   return (
     <>
@@ -65,16 +82,34 @@ export default function Dashboard() {
               <p>Default store-wide notification.</p>
             </div>
           </div>
-          <div className="rule-form">
-            <label>Trigger when stock is<select defaultValue="at_or_below_minimum"><option value="at_or_below_minimum">At or below minimum</option><option value="below_minimum">Below minimum only</option></select></label>
-            <label>Check inventory every<select defaultValue="hourly"><option value="hourly">1 hour</option><option value="three_hours">3 hours</option><option value="daily">24 hours</option></select></label>
+          <fetcher.Form method="post" className="rule-form">
+            <label>
+              Trigger when stock is
+              <select name="triggerType" defaultValue={rule.triggerType}>
+                <option value="at_or_below_minimum">At or below minimum</option>
+                <option value="below_minimum">Below minimum only</option>
+                <option value="out_of_stock">Out of stock</option>
+              </select>
+            </label>
+            <label>
+              Check inventory every
+              <select name="checkFrequency" defaultValue={rule.checkFrequency}>
+                <option value="hourly">1 hour</option>
+                <option value="three_hours">3 hours</option>
+                <option value="daily">24 hours</option>
+              </select>
+            </label>
             <fieldset>
               <legend>Send notifications to</legend>
               <label className="check"><input type="checkbox" defaultChecked /> Store owner email</label>
               <label className="check"><input type="checkbox" defaultChecked /> Staff emails</label>
               <label className="check disabled"><input type="checkbox" disabled /> Slack channel <span className="badge">Coming soon</span></label>
             </fieldset>
-          </div>
+            <button className="primary full" type="submit" disabled={fetcher.state !== "idle"}>
+              {fetcher.state !== "idle" ? "Updating…" : "Update rule"}
+            </button>
+            {fetcher.data?.ok && <p style={{ color: "var(--ok)", margin: 0 }}>Rule updated.</p>}
+          </fetcher.Form>
         </aside>
       </section>
 
