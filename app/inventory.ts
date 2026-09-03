@@ -46,6 +46,11 @@ export async function loadInventoryRows(admin: { graphql: (query: string) => Pro
     ]);
   } catch (err: any) {
     if (err?.errors?.networkStatusCode === 403 || err?.message?.includes("Forbidden")) {
+      try {
+        await prisma.session.deleteMany({ where: { shop } });
+      } catch {
+        // ignore
+      }
       const body = err?.response?.body ?? err?.errors?.body ?? err?.body;
       throw new Response(
         `Shopify GraphQL products query returned 403 Forbidden.\n\nRaw error: ${err?.message}\n\nResponse body: ${typeof body === "string" ? body : JSON.stringify(body)}`,
