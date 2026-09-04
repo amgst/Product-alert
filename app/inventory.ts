@@ -17,47 +17,110 @@ type ShopifyProduct = {
   };
 };
 
+const PRODUCTS_QUERY = `
+  #graphql
+  query MinStockProducts {
+    products(first: 25, sortKey: UPDATED_AT, reverse: true) {
+      nodes {
+        id
+        title
+        variants(first: 20) {
+          nodes {
+            id
+            title
+            sku
+            inventoryQuantity
+          }
+        }
+      }
+    }
+  }
+`;
+
+// Shopify is retiring permanent (non-expiring) offline access tokens. A shop that
+// installed this app before that rollout still holds one, and every Admin API call
+// with it fails with a 403 "Non-expiring access tokens are no longer accepted".
+// Shopify's documented fix is a one-time silent token-exchange migration, not a
+// merchant reinstall, so we self-heal instead of just bouncing the user to re-auth.
+// https://shopify.dev/docs/apps/build/authentication-authorization/access-tokens/offline-access-tokens#expiring-vs-non-expiring-offline-tokens
+async function migrateNonExpiringToken(shop: string, nonExpiringAccessToken: string) {
+  const res = await fetch(`https://${shop}/admin/oauth/access_token`, {
+    method: "POST",
+    headers: { "Content-Type": "application/json", Accept: "application/json" },
+    body: JSON.stringify({
+      client_id: process.env.SHOPIFY_API_KEY,
+      client_secret: process.env.SHOPIFY_API_SECRET,
+      grant_type: "urn:ietf:params:oauth:grant-type:token-exchange",
+      subject_token: nonExpiringAccessToken,
+      subject_token_type: "urn:shopify:params:oauth:token-type:offline-access-token",
+      requested_token_type: "urn:shopify:params:oauth:token-type:offline-access-token",
+      expiring: "1",
+    }),
+  });
+
+  if (!res.ok) return null;
+  return (await res.json()) as { access_token: string; scope: string; expires_in?: number };
+}
+
+async function tryHealNonExpiringToken(shop: string): Promise<{ response: Response } | null> {
+  try {
+    const session = await prisma.session.findFirst({ where: { shop, isOnline: false } });
+    if (!session?.accessToken) return null;
+
+    const migrated = await migrateNonExpiringToken(shop, session.accessToken);
+    if (!migrated?.access_token) return null;
+
+    await prisma.session.update({
+      where: { id: session.id },
+      data: {
+        accessToken: migrated.access_token,
+        scope: migrated.scope,
+        expires: migrated.expires_in ? new Date(Date.now() + migrated.expires_in * 1000) : null,
+      },
+    });
+
+    const response = await fetch(`https://${shop}/admin/api/2025-07/graphql.json`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json", "X-Shopify-Access-Token": migrated.access_token },
+      body: JSON.stringify({ query: PRODUCTS_QUERY }),
+    });
+    if (!response.ok) return null;
+    return { response };
+  } catch {
+    return null;
+  }
+}
+
 export async function loadInventoryRows(admin: { graphql: (query: string) => Promise<Response> }, shop: string) {
   let response: Response;
   let thresholds: ProductThreshold[];
 
   try {
     [response, thresholds] = await Promise.all([
-      admin.graphql(`
-        #graphql
-        query MinStockProducts {
-          products(first: 25, sortKey: UPDATED_AT, reverse: true) {
-            nodes {
-              id
-              title
-              variants(first: 20) {
-                nodes {
-                  id
-                  title
-                  sku
-                  inventoryQuantity
-                }
-              }
-            }
-          }
-        }
-      `),
+      admin.graphql(PRODUCTS_QUERY),
       prisma.productThreshold.findMany({ where: { shop } }) as Promise<ProductThreshold[]>,
     ]);
   } catch (err: any) {
     if (err?.errors?.networkStatusCode === 403 || err?.message?.includes("Forbidden")) {
-      try {
-        await prisma.session.deleteMany({ where: { shop } });
-      } catch {
-        // ignore
+      const healed = await tryHealNonExpiringToken(shop);
+      if (healed) {
+        response = healed.response;
+        thresholds = await prisma.productThreshold.findMany({ where: { shop } });
+      } else {
+        try {
+          await prisma.session.deleteMany({ where: { shop } });
+        } catch {
+          // ignore
+        }
+        const body = err?.response?.body ?? err?.errors?.body ?? err?.body;
+        throw new Response(
+          `Shopify GraphQL products query returned 403 Forbidden.\n\nRaw error: ${err?.message}\n\nResponse body: ${typeof body === "string" ? body : JSON.stringify(body)}`,
+          { status: 403, statusText: "Forbidden" },
+        );
       }
-      const body = err?.response?.body ?? err?.errors?.body ?? err?.body;
-      throw new Response(
-        `Shopify GraphQL products query returned 403 Forbidden.\n\nRaw error: ${err?.message}\n\nResponse body: ${typeof body === "string" ? body : JSON.stringify(body)}`,
-        { status: 403, statusText: "Forbidden" },
-      );
+    } else {
+      throw err;
     }
-    throw err;
   }
 
   if (response.status === 403 || response.status === 401) {
