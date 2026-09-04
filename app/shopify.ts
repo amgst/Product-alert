@@ -19,6 +19,14 @@ const shopify = shopifyApp({
   authPathPrefix: "/auth",
   sessionStorage: new PrismaSessionStorage(prisma),
   distribution: AppDistribution.AppStore,
+  future: {
+    // Without this, every fresh token exchange (on session expiry, or after any
+    // session gets deleted) requests a legacy non-expiring offline token, which
+    // Shopify now rejects outright for shops still on that grandfathered type.
+    // This makes the library request the expiring type natively and auto-refresh
+    // it before expiry, instead of relying on our own reactive self-heal.
+    expiringOfflineAccessTokens: true,
+  },
   billing: {
     [PRO_PLAN]: {
       lineItems: [
