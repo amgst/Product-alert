@@ -1,16 +1,13 @@
 {
   "framework": null,
   "buildCommand": "npm run build",
+  "outputDirectory": "build/client",
   "functions": {
     "api/index.js": {
       "includeFiles": "{build/server/**,node_modules/.prisma/client/**,node_modules/@prisma/client/**}"
     }
   },
   "rewrites": [
-    {
-      "source": "/assets/(.*)",
-      "destination": "/build/client/assets/$1"
-    },
     {
       "source": "/(.*)",
       "destination": "/api/index.js"
