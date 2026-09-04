@@ -1,7 +1,5 @@
 import { createRequestHandler } from "@react-router/node";
-import * as buildModule from "../build/server/index.js";
-
-const build = buildModule.default || buildModule;
+import * as build from "../build/server/index.js";
 
 export default createRequestHandler({
   build,

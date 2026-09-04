@@ -2,7 +2,7 @@
   "buildCommand": "npm run build",
   "functions": {
     "api/index.js": {
-      "includeFiles": "build/server/**"
+      "includeFiles": "{build/server/**,node_modules/.prisma/client/**,node_modules/@prisma/client/**}"
     }
   },
   "rewrites": [
