@@ -62,7 +62,11 @@ async function migrateNonExpiringToken(shop: string, nonExpiringAccessToken: str
   return (await res.json()) as { access_token: string; scope: string; expires_in?: number };
 }
 
-async function tryHealNonExpiringToken(shop: string): Promise<{ response: Response } | null> {
+async function tryHealNonExpiringToken(
+  shop: string,
+  query: string,
+  variables?: Record<string, unknown>,
+): Promise<{ response: Response } | null> {
   try {
     const session = await prisma.session.findFirst({ where: { shop, isOnline: false } });
     if (!session?.accessToken) return null;
@@ -82,7 +86,7 @@ async function tryHealNonExpiringToken(shop: string): Promise<{ response: Respon
     const response = await fetch(`https://${shop}/admin/api/2025-07/graphql.json`, {
       method: "POST",
       headers: { "Content-Type": "application/json", "X-Shopify-Access-Token": migrated.access_token },
-      body: JSON.stringify({ query: PRODUCTS_QUERY }),
+      body: JSON.stringify(variables ? { query, variables } : { query }),
     });
     if (!response.ok) return null;
     return { response };
@@ -91,36 +95,61 @@ async function tryHealNonExpiringToken(shop: string): Promise<{ response: Respon
   }
 }
 
-export async function loadInventoryRows(admin: { graphql: (query: string) => Promise<Response> }, shop: string) {
+// Every admin.graphql() call in this app must go through here, not admin.graphql()
+// directly — this is the one place the non-expiring-token self-heal (above) is
+// wired in. A call site that bypasses this loses that protection silently, so any
+// new Admin API call should be added through this helper.
+export async function fetchAdminGraphql(
+  admin: { graphql: (query: string, options?: { variables?: Record<string, unknown> }) => Promise<Response> },
+  shop: string,
+  query: string,
+  variables?: Record<string, unknown>,
+): Promise<Response> {
+  let response: Response;
+  try {
+    response = await admin.graphql(query, variables ? { variables } : undefined);
+  } catch (err: any) {
+    const isForbidden = err?.errors?.networkStatusCode === 403 || err?.message?.includes("Forbidden");
+    if (!isForbidden) throw err;
+    const healed = await tryHealNonExpiringToken(shop, query, variables);
+    if (healed) return healed.response;
+    throw err;
+  }
+
+  if (response.status === 403 || response.status === 401) {
+    const healed = await tryHealNonExpiringToken(shop, query, variables);
+    if (healed) return healed.response;
+  }
+
+  return response;
+}
+
+export async function loadInventoryRows(
+  admin: { graphql: (query: string, options?: { variables?: Record<string, unknown> }) => Promise<Response> },
+  shop: string,
+) {
   let response: Response;
   let thresholds: ProductThreshold[];
 
   try {
     [response, thresholds] = await Promise.all([
-      admin.graphql(PRODUCTS_QUERY),
+      fetchAdminGraphql(admin, shop, PRODUCTS_QUERY),
       prisma.productThreshold.findMany({ where: { shop } }) as Promise<ProductThreshold[]>,
     ]);
   } catch (err: any) {
-    if (err?.errors?.networkStatusCode === 403 || err?.message?.includes("Forbidden")) {
-      const healed = await tryHealNonExpiringToken(shop);
-      if (healed) {
-        response = healed.response;
-        thresholds = await prisma.productThreshold.findMany({ where: { shop } });
-      } else {
-        try {
-          await prisma.session.deleteMany({ where: { shop } });
-        } catch {
-          // ignore
-        }
-        const body = err?.response?.body ?? err?.errors?.body ?? err?.body;
-        throw new Response(
-          `Shopify GraphQL products query returned 403 Forbidden.\n\nRaw error: ${err?.message}\n\nResponse body: ${typeof body === "string" ? body : JSON.stringify(body)}`,
-          { status: 403, statusText: "Forbidden" },
-        );
-      }
-    } else {
-      throw err;
+    const isForbidden = err?.errors?.networkStatusCode === 403 || err?.message?.includes("Forbidden");
+    if (!isForbidden) throw err;
+
+    try {
+      await prisma.session.deleteMany({ where: { shop } });
+    } catch {
+      // ignore
     }
+    const body = err?.response?.body ?? err?.errors?.body ?? err?.body;
+    throw new Response(
+      `Shopify GraphQL products query returned 403 Forbidden.\n\nRaw error: ${err?.message}\n\nResponse body: ${typeof body === "string" ? body : JSON.stringify(body)}`,
+      { status: 403, statusText: "Forbidden" },
+    );
   }
 
   if (response.status === 403 || response.status === 401) {

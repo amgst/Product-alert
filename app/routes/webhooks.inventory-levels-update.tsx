@@ -2,6 +2,7 @@ import type { ActionFunctionArgs } from "react-router";
 import prisma from "../db";
 import { authenticate } from "../shopify";
 import { notifyLowStock } from "../notifications.server";
+import { fetchAdminGraphql } from "../inventory";
 
 const ALERT_COOLDOWN_MS = 24 * 60 * 60 * 1000;
 
@@ -27,20 +28,30 @@ export const action = async ({ request }: ActionFunctionArgs) => {
   const inventoryItemId = String((payload as { inventory_item_id?: number }).inventory_item_id ?? "");
   if (!inventoryItemId) return new Response();
 
-  const response = await admin.graphql(
-    `#graphql
-    query InventoryItemLookup($id: ID!) {
-      inventoryItem(id: $id) {
-        variant {
-          id
-          title
-          inventoryQuantity
-          product { id title }
+  let response: Response;
+  try {
+    response = await fetchAdminGraphql(
+      admin,
+      shop,
+      `#graphql
+      query InventoryItemLookup($id: ID!) {
+        inventoryItem(id: $id) {
+          variant {
+            id
+            title
+            inventoryQuantity
+            product { id title }
+          }
         }
-      }
-    }`,
-    { variables: { id: `gid://shopify/InventoryItem/${inventoryItemId}` } },
-  );
+      }`,
+      { id: `gid://shopify/InventoryItem/${inventoryItemId}` },
+    );
+  } catch (err: any) {
+    console.error(`InventoryItemLookup GraphQL error for shop ${shop}:`, err?.message);
+    // Fail loudly so Shopify retries the webhook instead of silently dropping the alert.
+    throw new Response("Inventory lookup failed", { status: 500 });
+  }
+
   const result = (await response.json()) as InventoryItemLookup;
   if (result.errors) {
     console.error(`InventoryItemLookup GraphQL error for shop ${shop}:`, JSON.stringify(result.errors));
