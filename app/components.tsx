@@ -1,7 +1,39 @@
 import { Fragment } from "react";
+import { useFetcher } from "react-router";
 import type { ProductRow } from "./inventory.shared";
 import { getStatus } from "./inventory.shared";
 export { ErrorDisplay } from "./components/ErrorDisplay";
+
+function NotifyToggle({ row }: { row: ProductRow }) {
+  const fetcher = useFetcher();
+  const checked = fetcher.formData
+    ? fetcher.formData.get("watchEnabled") === "true"
+    : row.watchEnabled;
+
+  return (
+    <label className="switch">
+      <input
+        type="checkbox"
+        checked={checked}
+        aria-label={`Notify for ${row.title} ${row.variantTitle}`}
+        onChange={(event) => {
+          fetcher.submit(
+            {
+              productId: row.productId,
+              variantId: row.variantId,
+              sku: row.sku,
+              productTitle: row.title,
+              variantTitle: row.variantTitle,
+              watchEnabled: String(event.currentTarget.checked),
+            },
+            { method: "post", action: "/app/toggle-watch" },
+          );
+        }}
+      />
+      <span />
+    </label>
+  );
+}
 
 
 export function PageHeader({
@@ -128,15 +160,7 @@ export function ProductTable({ rows, editable = false }: { rows: ProductRow[]; e
                         <span className={`pill ${status.tone}`}>{status.label}</span>
                       </td>
                       <td>
-                        <label className="switch">
-                          <input
-                            name={`watchEnabled:${index}`}
-                            type="checkbox"
-                            defaultChecked={row.watchEnabled}
-                            disabled={!editable}
-                          />
-                          <span />
-                        </label>
+                        <NotifyToggle row={row} />
                       </td>
                     </tr>
                   );

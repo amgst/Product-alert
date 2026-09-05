@@ -11,6 +11,7 @@ export default [
   route("app", "routes/app.tsx", [
     index("routes/app._index.tsx"),
     route("products", "routes/app.products.tsx"),
+    route("toggle-watch", "routes/app.toggle-watch.tsx"),
     route("alerts", "routes/app.alerts.tsx"),
     route("settings", "routes/app.settings.tsx"),
     route("billing/upgrade", "routes/app.billing.upgrade.tsx"),

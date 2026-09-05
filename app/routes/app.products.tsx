@@ -45,7 +45,8 @@ export const action = async ({ request }: ActionFunctionArgs) => {
           variantTitle: String(formData.get(`variantTitle:${index}`) || ""),
           minimumStock,
           reorderQuantity,
-          watchEnabled: formData.has(`watchEnabled:${index}`),
+          // watchEnabled is saved instantly by its own toggle (app.toggle-watch.tsx)
+          // and intentionally left untouched here.
         },
         create: {
           shop: session.shop,
@@ -56,7 +57,7 @@ export const action = async ({ request }: ActionFunctionArgs) => {
           variantTitle: String(formData.get(`variantTitle:${index}`) || ""),
           minimumStock,
           reorderQuantity,
-          watchEnabled: formData.has(`watchEnabled:${index}`),
+          watchEnabled: true,
         },
       });
     }),
