@@ -22,7 +22,7 @@ type ShopifyProduct = {
 const PRODUCTS_QUERY = `
   #graphql
   query MinStockProducts($first: Int, $after: String, $last: Int, $before: String) {
-    products(first: $first, after: $after, last: $last, before: $before, sortKey: UPDATED_AT, reverse: true) {
+    products(first: $first, after: $after, last: $last, before: $before, sortKey: UPDATED_AT, reverse: true, query: "status:active") {
       nodes {
         id
         title
@@ -63,7 +63,7 @@ export type ProductsPageInfo = {
 const PRODUCTS_COUNT_QUERY = `
   #graphql
   query MinStockProductsCount {
-    productsCount {
+    productsCount(query: "status:active") {
       count
       precision
     }
@@ -265,7 +265,7 @@ export async function getStoreProductCount(
 const ALL_PRODUCT_TITLES_QUERY = `
   #graphql
   query MinStockAllProductTitles {
-    products(first: 250, sortKey: UPDATED_AT, reverse: true) {
+    products(first: 250, sortKey: UPDATED_AT, reverse: true, query: "status:active") {
       nodes {
         id
         title
