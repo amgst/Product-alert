@@ -1,6 +1,6 @@
 import { useState } from "react";
 import type { ActionFunctionArgs, LoaderFunctionArgs } from "react-router";
-import { Form, redirect, useLoaderData } from "react-router";
+import { Form, Link, redirect, useLoaderData } from "react-router";
 import { PageHeader, ProductTable } from "../components";
 import { authenticate } from "../shopify";
 import prisma from "../db";
@@ -9,8 +9,12 @@ import type { ProductRow } from "../inventory.shared";
 
 export const loader = async ({ request }: LoaderFunctionArgs) => {
   const { admin, session } = await authenticate.admin(request);
-  const [rows, productCount, allSummaries] = await Promise.all([
-    loadInventoryRows(admin, session.shop),
+  const url = new URL(request.url);
+  const after = url.searchParams.get("after") || undefined;
+  const before = url.searchParams.get("before") || undefined;
+
+  const [{ rows, pageInfo }, productCount, allSummaries] = await Promise.all([
+    loadInventoryRows(admin, session.shop, { after, before }),
     getStoreProductCount(admin, session.shop),
     listAllProductSummaries(admin, session.shop),
   ]);
@@ -18,6 +22,7 @@ export const loader = async ({ request }: LoaderFunctionArgs) => {
 
   return {
     rows,
+    pageInfo,
     shop: session.shop,
     monitoring: {
       monitored: monitoredIds.size,
@@ -88,7 +93,7 @@ export const action = async ({ request }: ActionFunctionArgs) => {
 };
 
 export default function Products() {
-  const { rows, shop, monitoring, unmonitored } = useLoaderData<typeof loader>();
+  const { rows, pageInfo, shop, monitoring, unmonitored } = useLoaderData<typeof loader>();
   const notMonitored = monitoring.total !== null ? Math.max(0, monitoring.total - monitoring.monitored) : null;
   const plus = monitoring.isExact ? "" : "+";
   const [tab, setTab] = useState<"monitored" | "unmonitored">("monitored");
@@ -108,7 +113,7 @@ export default function Products() {
             <p>
               Review variants, stock levels, thresholds, and reorder quantities.
               {monitoring.total !== null && (
-                <> Showing {monitoring.monitored} of {monitoring.total}{plus} products in your store.</>
+                <> Showing {monitoring.monitored} of {monitoring.total}{plus} products in your store — use Next/Previous to page through the rest.</>
               )}
             </p>
           </div>
@@ -126,9 +131,27 @@ export default function Products() {
         )}
 
         {tab === "monitored" ? (
-          <Form id="products-form" method="post">
-            <ProductTable rows={rows} editable />
-          </Form>
+          <>
+            <Form id="products-form" method="post">
+              <ProductTable rows={rows} editable />
+            </Form>
+            <div style={{ display: "flex", justifyContent: "space-between", marginTop: 16 }}>
+              {pageInfo.hasPreviousPage && pageInfo.startCursor ? (
+                <Link className="ghost" to={`?before=${encodeURIComponent(pageInfo.startCursor)}`} replace>
+                  ← Previous
+                </Link>
+              ) : (
+                <span />
+              )}
+              {pageInfo.hasNextPage && pageInfo.endCursor ? (
+                <Link className="ghost" to={`?after=${encodeURIComponent(pageInfo.endCursor)}`} replace>
+                  Next →
+                </Link>
+              ) : (
+                <span />
+              )}
+            </div>
+          </>
         ) : (
           <div className="table-wrap">
             <table>

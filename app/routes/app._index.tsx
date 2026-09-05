@@ -15,7 +15,7 @@ export const loader = async ({ request }: LoaderFunctionArgs) => {
   // ensureDefaultRule runs first: it lazily creates a shop's first AlertRule row,
   // and activeRules below must count that row on this very load, not just the next one.
   const rule = await ensureDefaultRule(shop);
-  const [rows, productCount, events, activeRules, alertsSent] = await Promise.all([
+  const [{ rows }, productCount, events, activeRules, alertsSent] = await Promise.all([
     loadInventoryRows(admin, shop),
     getStoreProductCount(admin, shop),
     prisma.notificationEvent.findMany({ where: { shop }, orderBy: { sentAt: "desc" }, take: 5 }),

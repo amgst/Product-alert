@@ -21,8 +21,8 @@ type ShopifyProduct = {
 
 const PRODUCTS_QUERY = `
   #graphql
-  query MinStockProducts {
-    products(first: 25, sortKey: UPDATED_AT, reverse: true) {
+  query MinStockProducts($first: Int, $after: String, $last: Int, $before: String) {
+    products(first: $first, after: $after, last: $last, before: $before, sortKey: UPDATED_AT, reverse: true) {
       nodes {
         id
         title
@@ -41,9 +41,24 @@ const PRODUCTS_QUERY = `
           }
         }
       }
+      pageInfo {
+        hasNextPage
+        hasPreviousPage
+        startCursor
+        endCursor
+      }
     }
   }
 `;
+
+const PRODUCTS_PAGE_SIZE = 25;
+
+export type ProductsPageInfo = {
+  hasNextPage: boolean;
+  hasPreviousPage: boolean;
+  startCursor: string | null;
+  endCursor: string | null;
+};
 
 const PRODUCTS_COUNT_QUERY = `
   #graphql
@@ -145,13 +160,18 @@ export async function fetchAdminGraphql(
 export async function loadInventoryRows(
   admin: { graphql: (query: string, options?: { variables?: Record<string, unknown> }) => Promise<Response> },
   shop: string,
-) {
+  pagination?: { after?: string; before?: string },
+): Promise<{ rows: ProductRow[]; pageInfo: ProductsPageInfo }> {
+  const variables = pagination?.before
+    ? { last: PRODUCTS_PAGE_SIZE, before: pagination.before }
+    : { first: PRODUCTS_PAGE_SIZE, after: pagination?.after };
+
   let response: Response;
   let thresholds: ProductThreshold[];
 
   try {
     [response, thresholds] = await Promise.all([
-      fetchAdminGraphql(admin, shop, PRODUCTS_QUERY),
+      fetchAdminGraphql(admin, shop, PRODUCTS_QUERY, variables),
       prisma.productThreshold.findMany({ where: { shop } }) as Promise<ProductThreshold[]>,
     ]);
   } catch (err: any) {
@@ -178,13 +198,22 @@ export async function loadInventoryRows(
     );
   }
 
-  const payload = (await response.json()) as { data?: { products?: { nodes?: ShopifyProduct[] } }; errors?: Array<{ message: string }> };
+  const payload = (await response.json()) as {
+    data?: { products?: { nodes?: ShopifyProduct[]; pageInfo?: ProductsPageInfo } };
+    errors?: Array<{ message: string }>;
+  };
   const products = payload?.data?.products?.nodes ?? [];
+  const pageInfo: ProductsPageInfo = payload?.data?.products?.pageInfo ?? {
+    hasNextPage: false,
+    hasPreviousPage: false,
+    startCursor: null,
+    endCursor: null,
+  };
   const thresholdMap = new Map(
     thresholds.map((item) => [`${item.productId}:${item.variantId ?? ""}`, item] as const),
   );
 
-  return products.flatMap((product) =>
+  const rows = products.flatMap((product) =>
     (product.variants?.nodes ?? []).map((variant) => {
       const saved = thresholdMap.get(`${product.id}:${variant.id}`);
       const available = variant.inventoryQuantity ?? 0;
@@ -204,6 +233,8 @@ export async function loadInventoryRows(
       } satisfies ProductRow;
     }),
   );
+
+  return { rows, pageInfo };
 }
 
 
