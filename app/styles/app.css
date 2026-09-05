@@ -416,12 +416,6 @@ th {
   gap: 10px;
 }
 
-.product-group-title .swatch,
-.product-group-title .thumb {
-  width: 28px;
-  height: 28px;
-}
-
 .product-group-title strong {
   font-size: 15px;
 }

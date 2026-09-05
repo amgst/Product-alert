@@ -71,12 +71,15 @@ export function ProductTable({ rows, editable = false }: { rows: ProductRow[]; e
     }
   });
 
-  // Every group starts expanded; collapsing is view-only (rows stay mounted, just
+  // Every group starts collapsed. This tracks explicit *expand* overrides rather
+  // than collapse state, so a group defaults to collapsed the moment it appears
+  // (e.g. a newly loaded page of results) instead of only for groups seen when
+  // this component first mounted. Collapsing is view-only (rows stay mounted, just
   // hidden via CSS) so their minimumStock/reorderQuantity/watchEnabled form fields
   // still submit correctly with "Save thresholds" even while collapsed.
-  const [collapsed, setCollapsed] = useState<Set<string>>(() => new Set());
+  const [expanded, setExpanded] = useState<Set<string>>(() => new Set());
   const toggleGroup = (productId: string) => {
-    setCollapsed((prev) => {
+    setExpanded((prev) => {
       const next = new Set(prev);
       if (next.has(productId)) next.delete(productId);
       else next.add(productId);
@@ -101,7 +104,7 @@ export function ProductTable({ rows, editable = false }: { rows: ProductRow[]; e
         <tbody>
           {groups.map((group, groupIndex) => {
             const isGrouped = group.indices.length > 1;
-            const isCollapsed = isGrouped && collapsed.has(group.productId);
+            const isCollapsed = isGrouped && !expanded.has(group.productId);
 
             return (
               <Fragment key={group.productId}>
@@ -115,10 +118,10 @@ export function ProductTable({ rows, editable = false }: { rows: ProductRow[]; e
                         aria-expanded={!isCollapsed}
                         style={{ background: "none", border: "none", padding: 0, cursor: "pointer", width: "100%", textAlign: "left" }}
                       >
-                        <span aria-hidden="true">{isCollapsed ? "▸" : "▾"}</span>
                         <ProductThumb url={group.imageUrl} swatchIndex={groupIndex} />
                         <strong>{group.title}</strong>
                         <small>{group.indices.length} variants</small>
+                        <span aria-hidden="true" style={{ marginLeft: "auto" }}>{isCollapsed ? "▸" : "▾"}</span>
                       </button>
                     </td>
                   </tr>
