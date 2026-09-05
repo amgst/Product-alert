@@ -117,10 +117,10 @@ export default function Products() {
         {notMonitored !== null && notMonitored > 0 && (
           <div style={{ display: "flex", gap: 8, marginBottom: 16 }}>
             <button type="button" className={tab === "monitored" ? "primary" : "ghost"} onClick={() => setTab("monitored")}>
-              Monitored ({monitoring.monitored})
+              With inventory control ({monitoring.monitored})
             </button>
             <button type="button" className={tab === "unmonitored" ? "primary" : "ghost"} onClick={() => setTab("unmonitored")}>
-              Not monitored ({unmonitored.products.length}{unmonitored.hasMore ? "+" : ""})
+              Without inventory control ({unmonitored.products.length}{unmonitored.hasMore ? "+" : ""})
             </button>
           </div>
         )}
