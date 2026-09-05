@@ -5,7 +5,7 @@ import { getStatus } from "../inventory.shared";
 import type { ProductRow } from "../inventory.shared";
 import { authenticate } from "../shopify";
 import prisma from "../db";
-import { ensureDefaultRule, loadInventoryRows } from "../inventory";
+import { ensureDefaultRule, getStoreProductCount, loadInventoryRows } from "../inventory";
 import type { NotificationEvent } from "@prisma/client";
 
 export const loader = async ({ request }: LoaderFunctionArgs) => {
@@ -15,17 +15,25 @@ export const loader = async ({ request }: LoaderFunctionArgs) => {
   // ensureDefaultRule runs first: it lazily creates a shop's first AlertRule row,
   // and activeRules below must count that row on this very load, not just the next one.
   const rule = await ensureDefaultRule(shop);
-  const [rows, events, activeRules, alertsSent] = await Promise.all([
+  const [rows, productCount, events, activeRules, alertsSent] = await Promise.all([
     loadInventoryRows(admin, shop),
+    getStoreProductCount(admin, shop),
     prisma.notificationEvent.findMany({ where: { shop }, orderBy: { sentAt: "desc" }, take: 5 }),
     prisma.alertRule.count({ where: { shop, active: true } }),
     prisma.notificationEvent.count({ where: { shop } }),
   ]);
 
+  const monitoredProductCount = new Set(rows.map((row: ProductRow) => row.productId)).size;
+
   return {
     rows,
     rule,
     events,
+    monitoring: {
+      monitored: monitoredProductCount,
+      total: productCount?.count ?? null,
+      isExact: productCount?.isExact ?? true,
+    },
     counts: {
       belowMinimum: rows.filter((row: ProductRow) => getStatus(row).tone === "danger").length,
       nearThreshold: rows.filter((row: ProductRow) => getStatus(row).tone === "warning").length,
@@ -52,8 +60,10 @@ export const action = async ({ request }: ActionFunctionArgs) => {
 };
 
 export default function Dashboard() {
-  const { rows, rule, counts, events } = useLoaderData<typeof loader>();
+  const { rows, rule, counts, events, monitoring } = useLoaderData<typeof loader>();
   const fetcher = useFetcher<{ ok?: boolean }>();
+  const notMonitored = monitoring.total !== null ? Math.max(0, monitoring.total - monitoring.monitored) : null;
+  const plus = monitoring.isExact ? "" : "+";
 
   return (
     <>
@@ -74,8 +84,16 @@ export default function Dashboard() {
           <div className="panel-header">
             <div>
               <h2>Products to watch</h2>
-              <p>Live Shopify products matched with saved thresholds.</p>
+              <p>
+                Live Shopify products matched with saved thresholds.
+                {monitoring.total !== null && (
+                  <> Monitoring {monitoring.monitored} of {monitoring.total}{plus} products in your store.</>
+                )}
+              </p>
             </div>
+            {notMonitored !== null && notMonitored > 0 && (
+              <span className="pill warning">{notMonitored}{plus} not monitored yet</span>
+            )}
           </div>
           <ProductTable rows={rows.slice(0, 8)} />
         </div>

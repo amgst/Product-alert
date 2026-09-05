@@ -37,6 +37,16 @@ const PRODUCTS_QUERY = `
   }
 `;
 
+const PRODUCTS_COUNT_QUERY = `
+  #graphql
+  query MinStockProductsCount {
+    productsCount {
+      count
+      precision
+    }
+  }
+`;
+
 // Shopify is retiring permanent (non-expiring) offline access tokens. A shop that
 // installed this app before that rollout still holds one, and every Admin API call
 // with it fails with a 403 "Non-expiring access tokens are no longer accepted".
@@ -187,6 +197,30 @@ export async function loadInventoryRows(
   );
 }
 
+
+// The products query above only fetches the 25 most recently updated products, so
+// stores with larger catalogs will have products that never appear in the app at
+// all. This tells the UI the real total so it can surface that gap to the merchant
+// instead of silently only ever showing a subset of their catalog.
+export async function getStoreProductCount(
+  admin: { graphql: (query: string, options?: { variables?: Record<string, unknown> }) => Promise<Response> },
+  shop: string,
+): Promise<{ count: number; isExact: boolean } | null> {
+  try {
+    const response = await fetchAdminGraphql(admin, shop, PRODUCTS_COUNT_QUERY);
+    if (!response.ok) return null;
+
+    const payload = (await response.json()) as {
+      data?: { productsCount?: { count: number; precision: string } };
+    };
+    const result = payload?.data?.productsCount;
+    if (!result) return null;
+
+    return { count: result.count, isExact: result.precision === "EXACT" };
+  } catch {
+    return null;
+  }
+}
 
 export async function ensureDefaultRule(shop: string) {
   const existing = await prisma.alertRule.findFirst({ where: { shop } });

@@ -3,11 +3,25 @@ import { Form, redirect, useLoaderData } from "react-router";
 import { PageHeader, ProductTable } from "../components";
 import { authenticate } from "../shopify";
 import prisma from "../db";
-import { loadInventoryRows } from "../inventory";
+import { getStoreProductCount, loadInventoryRows } from "../inventory";
+import type { ProductRow } from "../inventory.shared";
 
 export const loader = async ({ request }: LoaderFunctionArgs) => {
   const { admin, session } = await authenticate.admin(request);
-  return { rows: await loadInventoryRows(admin, session.shop) };
+  const [rows, productCount] = await Promise.all([
+    loadInventoryRows(admin, session.shop),
+    getStoreProductCount(admin, session.shop),
+  ]);
+  const monitored = new Set(rows.map((row: ProductRow) => row.productId)).size;
+
+  return {
+    rows,
+    monitoring: {
+      monitored,
+      total: productCount?.count ?? null,
+      isExact: productCount?.isExact ?? true,
+    },
+  };
 };
 
 export const action = async ({ request }: ActionFunctionArgs) => {
@@ -67,7 +81,9 @@ export const action = async ({ request }: ActionFunctionArgs) => {
 };
 
 export default function Products() {
-  const { rows } = useLoaderData<typeof loader>();
+  const { rows, monitoring } = useLoaderData<typeof loader>();
+  const notMonitored = monitoring.total !== null ? Math.max(0, monitoring.total - monitoring.monitored) : null;
+  const plus = monitoring.isExact ? "" : "+";
 
   return (
     <>
@@ -79,8 +95,16 @@ export default function Products() {
         <div className="panel-header">
           <div>
             <h2>Inventory list</h2>
-            <p>Review variants, stock levels, thresholds, and reorder quantities.</p>
+            <p>
+              Review variants, stock levels, thresholds, and reorder quantities.
+              {monitoring.total !== null && (
+                <> Showing {monitoring.monitored} of {monitoring.total}{plus} products in your store.</>
+              )}
+            </p>
           </div>
+          {notMonitored !== null && notMonitored > 0 && (
+            <span className="pill warning">{notMonitored}{plus} not shown yet</span>
+          )}
         </div>
         <Form id="products-form" method="post">
           <ProductTable rows={rows} editable />
