@@ -7,11 +7,13 @@ type ShopifyVariant = {
   title: string;
   sku: string | null;
   inventoryQuantity: number | null;
+  image: { url: string } | null;
 };
 
 type ShopifyProduct = {
   id: string;
   title: string;
+  featuredImage: { url: string } | null;
   variants: {
     nodes: ShopifyVariant[];
   };
@@ -24,12 +26,18 @@ const PRODUCTS_QUERY = `
       nodes {
         id
         title
+        featuredImage {
+          url
+        }
         variants(first: 20) {
           nodes {
             id
             title
             sku
             inventoryQuantity
+            image {
+              url
+            }
           }
         }
       }
@@ -187,6 +195,7 @@ export async function loadInventoryRows(
         title: product.title,
         variantTitle: variant.title,
         sku: variant.sku || "No SKU",
+        imageUrl: variant.image?.url ?? product.featuredImage?.url ?? null,
         available,
         committed: 0,
         minimumStock: saved?.minimumStock ?? 15,

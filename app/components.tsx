@@ -53,14 +53,21 @@ export function PageHeader({
   );
 }
 
+function ProductThumb({ url, swatchIndex }: { url: string | null; swatchIndex: number }) {
+  if (url) {
+    return <img className="thumb" src={url} alt="" width={38} height={38} />;
+  }
+  return <span className={`swatch ${["coffee", "green", "blue", "rose"][swatchIndex % 4]}`} />;
+}
+
 export function ProductTable({ rows, editable = false }: { rows: ProductRow[]; editable?: boolean }) {
-  const groups: { productId: string; title: string; indices: number[] }[] = [];
+  const groups: { productId: string; title: string; imageUrl: string | null; indices: number[] }[] = [];
   rows.forEach((row, index) => {
     const group = groups[groups.length - 1];
     if (group && group.productId === row.productId) {
       group.indices.push(index);
     } else {
-      groups.push({ productId: row.productId, title: row.title, indices: [index] });
+      groups.push({ productId: row.productId, title: row.title, imageUrl: row.imageUrl, indices: [index] });
     }
   });
 
@@ -88,7 +95,7 @@ export function ProductTable({ rows, editable = false }: { rows: ProductRow[]; e
                   <tr className="product-group-row">
                     <td colSpan={7}>
                       <div className="product-group-title">
-                        <span className={`swatch ${["coffee", "green", "blue", "rose"][groupIndex % 4]}`} />
+                        <ProductThumb url={group.imageUrl} swatchIndex={groupIndex} />
                         <strong>{group.title}</strong>
                         <small>{group.indices.length} variants</small>
                       </div>
@@ -112,9 +119,7 @@ export function ProductTable({ rows, editable = false }: { rows: ProductRow[]; e
                           </>
                         ) : null}
                         <div className={isGrouped ? "product indented" : "product"}>
-                          {isGrouped ? null : (
-                            <span className={`swatch ${["coffee", "green", "blue", "rose"][groupIndex % 4]}`} />
-                          )}
+                          {isGrouped ? null : <ProductThumb url={row.imageUrl} swatchIndex={groupIndex} />}
                           <div>
                             {isGrouped ? <strong>{row.variantTitle}</strong> : <strong>{row.title}</strong>}
                             {isGrouped ? null : <small>{row.variantTitle}</small>}

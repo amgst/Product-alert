@@ -4,6 +4,7 @@ export type ProductRow = {
   title: string;
   variantTitle: string;
   sku: string;
+  imageUrl: string | null;
   available: number;
   committed: number;
   minimumStock: number;

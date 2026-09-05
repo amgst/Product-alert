@@ -391,6 +391,16 @@ th {
   border: 1px solid rgba(0, 0, 0, 0.08);
 }
 
+.thumb {
+  flex: 0 0 auto;
+  width: 38px;
+  height: 38px;
+  border-radius: 8px;
+  border: 1px solid rgba(0, 0, 0, 0.08);
+  object-fit: cover;
+  background: var(--bg);
+}
+
 .product-group-row td {
   padding: 16px 10px 6px;
   border-top: 1px solid var(--line);
