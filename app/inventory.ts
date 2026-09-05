@@ -222,6 +222,44 @@ export async function getStoreProductCount(
   }
 }
 
+const ALL_PRODUCT_TITLES_QUERY = `
+  #graphql
+  query MinStockAllProductTitles {
+    products(first: 250, sortKey: UPDATED_AT, reverse: true) {
+      nodes {
+        id
+        title
+      }
+      pageInfo {
+        hasNextPage
+      }
+    }
+  }
+`;
+
+// Cheap (no variants/inventory) lookup of product id+title, used only to name the
+// products that fall outside the 25-item monitored window above, so merchants can
+// actually see which products aren't covered instead of just a count.
+export async function listAllProductSummaries(
+  admin: { graphql: (query: string, options?: { variables?: Record<string, unknown> }) => Promise<Response> },
+  shop: string,
+): Promise<{ products: { id: string; title: string }[]; hasMore: boolean } | null> {
+  try {
+    const response = await fetchAdminGraphql(admin, shop, ALL_PRODUCT_TITLES_QUERY);
+    if (!response.ok) return null;
+
+    const payload = (await response.json()) as {
+      data?: { products?: { nodes?: { id: string; title: string }[]; pageInfo?: { hasNextPage: boolean } } };
+    };
+    return {
+      products: payload?.data?.products?.nodes ?? [],
+      hasMore: payload?.data?.products?.pageInfo?.hasNextPage ?? false,
+    };
+  } catch {
+    return null;
+  }
+}
+
 export async function ensureDefaultRule(shop: string) {
   const existing = await prisma.alertRule.findFirst({ where: { shop } });
 
