@@ -17,17 +17,14 @@ function NotifyToggle({ row }: { row: ProductRow }) {
         checked={checked}
         aria-label={`Notify for ${row.title} ${row.variantTitle}`}
         onChange={(event) => {
-          fetcher.submit(
-            {
-              productId: row.productId,
-              variantId: row.variantId,
-              sku: row.sku,
-              productTitle: row.title,
-              variantTitle: row.variantTitle,
-              watchEnabled: String(event.currentTarget.checked),
-            },
-            { method: "post", action: "/app/toggle-watch" },
-          );
+          const formData = new FormData();
+          formData.set("productId", row.productId);
+          formData.set("variantId", row.variantId);
+          formData.set("sku", row.sku);
+          formData.set("productTitle", row.title);
+          formData.set("variantTitle", row.variantTitle);
+          formData.set("watchEnabled", String(event.currentTarget.checked));
+          fetcher.submit(formData, { method: "post", action: "/app/toggle-watch" });
         }}
       />
       <span />
