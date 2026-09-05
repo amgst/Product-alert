@@ -7,14 +7,36 @@ import prisma from "../db";
 import { getStoreProductCount, listAllProductSummaries, loadInventoryRows } from "../inventory";
 import type { ProductRow } from "../inventory.shared";
 
+// history[i] is the cursor needed to fetch page (i + 2) - page 1 needs no cursor.
+// Reconstructed from the URL on every request since loaders are stateless; each
+// Next click appends one cursor, so jumping back to any page already visited is
+// instant, while jumping forward still means paging through one page at a time -
+// that's a Shopify API constraint (cursor-only), not a shortcut we're taking.
+function parseHistory(param: string | null): string[] {
+  if (!param) return [];
+  try {
+    const parsed = JSON.parse(param);
+    return Array.isArray(parsed) ? parsed.filter((c): c is string => typeof c === "string") : [];
+  } catch {
+    return [];
+  }
+}
+
 export const loader = async ({ request }: LoaderFunctionArgs) => {
   const { admin, session } = await authenticate.admin(request);
   const url = new URL(request.url);
-  const after = url.searchParams.get("after") || undefined;
-  const before = url.searchParams.get("before") || undefined;
+  let page = Math.max(1, parseInt(url.searchParams.get("page") || "1", 10) || 1);
+  let history = parseHistory(url.searchParams.get("h")).slice(0, page - 1);
+  // A hand-edited or stale URL might claim a page it doesn't have the cursor for -
+  // fall back to page 1 rather than silently fetching the wrong page's data.
+  if (page > 1 && !history[page - 2]) {
+    page = 1;
+    history = [];
+  }
+  const after = page > 1 ? history[page - 2] : undefined;
 
   const [{ rows, pageInfo }, productCount, allSummaries] = await Promise.all([
-    loadInventoryRows(admin, session.shop, { after, before }),
+    loadInventoryRows(admin, session.shop, after ? { after } : undefined),
     getStoreProductCount(admin, session.shop),
     listAllProductSummaries(admin, session.shop),
   ]);
@@ -23,6 +45,8 @@ export const loader = async ({ request }: LoaderFunctionArgs) => {
   return {
     rows,
     pageInfo,
+    page,
+    history,
     shop: session.shop,
     monitoring: {
       monitored: monitoredIds.size,
@@ -92,11 +116,24 @@ export const action = async ({ request }: ActionFunctionArgs) => {
   return redirect("/app/products");
 };
 
+function pageHref(targetPage: number, targetHistory: string[]) {
+  const params = new URLSearchParams();
+  params.set("page", String(targetPage));
+  if (targetHistory.length) params.set("h", JSON.stringify(targetHistory));
+  return `?${params.toString()}`;
+}
+
 export default function Products() {
-  const { rows, pageInfo, shop, monitoring, unmonitored } = useLoaderData<typeof loader>();
+  const { rows, pageInfo, page, history, shop, monitoring, unmonitored } = useLoaderData<typeof loader>();
   const notMonitored = monitoring.total !== null ? Math.max(0, monitoring.total - monitoring.monitored) : null;
   const plus = monitoring.isExact ? "" : "+";
+  const totalPages = monitoring.total !== null ? Math.max(1, Math.ceil(monitoring.total / 25)) : null;
   const [tab, setTab] = useState<"monitored" | "unmonitored">("monitored");
+
+  // Pages 1..page are already known (we've paged through them to get here); page+1
+  // becomes reachable the moment this page's endCursor is known.
+  const reachablePages = pageInfo.hasNextPage ? page + 1 : page;
+  const nextHistory = pageInfo.endCursor ? [...history, pageInfo.endCursor] : history;
 
   return (
     <>
@@ -135,22 +172,33 @@ export default function Products() {
             <Form id="products-form" method="post">
               <ProductTable rows={rows} editable />
             </Form>
-            <div style={{ display: "flex", justifyContent: "space-between", marginTop: 16 }}>
-              {pageInfo.hasPreviousPage && pageInfo.startCursor ? (
-                <Link className="ghost" to={`?before=${encodeURIComponent(pageInfo.startCursor)}`} replace>
-                  ← Previous
+            <nav style={{ display: "flex", alignItems: "center", gap: 6, marginTop: 16, flexWrap: "wrap" }} aria-label="Product pages">
+              {page > 1 && (
+                <Link className="ghost" to={pageHref(page - 1, history.slice(0, page - 2))}>
+                  ← Prev
                 </Link>
-              ) : (
-                <span />
               )}
-              {pageInfo.hasNextPage && pageInfo.endCursor ? (
-                <Link className="ghost" to={`?after=${encodeURIComponent(pageInfo.endCursor)}`} replace>
+              {Array.from({ length: reachablePages }, (_, i) => i + 1).map((num) => (
+                <Link
+                  key={num}
+                  className={num === page ? "primary" : "ghost"}
+                  aria-current={num === page ? "page" : undefined}
+                  to={pageHref(num, num <= page ? history.slice(0, num - 1) : nextHistory)}
+                >
+                  {num}
+                </Link>
+              ))}
+              {pageInfo.hasNextPage && (
+                <Link className="ghost" to={pageHref(page + 1, nextHistory)}>
                   Next →
                 </Link>
-              ) : (
-                <span />
               )}
-            </div>
+              {totalPages !== null && (
+                <span style={{ marginLeft: 8, fontSize: 13, color: "var(--muted)" }}>
+                  Page {page} of {totalPages}{plus}
+                </span>
+              )}
+            </nav>
           </>
         ) : (
           <div className="table-wrap">
