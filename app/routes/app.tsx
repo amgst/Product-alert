@@ -55,7 +55,8 @@ const navItems = [
   { label: "Products", to: "/app/products", icon: "box" },
   { label: "Alerts", to: "/app/alerts", icon: "bell" },
   { label: "Settings", to: "/app/settings", icon: "gear" },
-  { label: "Debugger", to: "/app/debug", icon: "bug" },
+  // Debugger intentionally not linked here - it's a development-only diagnostics
+  // page (404s in production, see app.debug.tsx) and was never meant for merchants.
 ];
 
 function Icon({ name }: { name: string }) {

@@ -6,6 +6,10 @@ import { authenticate } from "../shopify";
 import prisma from "../db";
 
 export const loader = async ({ request }: LoaderFunctionArgs) => {
+  if (process.env.NODE_ENV === "production") {
+    throw new Response("Not found", { status: 404 });
+  }
+
   let sessionShop = "Unknown";
   let authError: string | null = null;
   let adminRef: any = null;
@@ -107,6 +111,10 @@ export const loader = async ({ request }: LoaderFunctionArgs) => {
 };
 
 export const action = async ({ request }: ActionFunctionArgs) => {
+  if (process.env.NODE_ENV === "production") {
+    throw new Response("Not found", { status: 404 });
+  }
+
   const { session } = await authenticate.admin(request);
   const formData = await request.formData();
   const intent = String(formData.get("intent") || "");
